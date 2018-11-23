@@ -1,4 +1,4 @@
-# coding:utf-8
+# coding: utf-8
 """html用のオブジェクトLibraryです"""
 import io
 import sys
@@ -9,7 +9,12 @@ if sys.stdout.encoding != 'utf8':
     sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
-print("Content-Type: text/html; charset=UTF-8\r\n")
+
+"""生成されたHTMLはこちらでストックされる、配列連結メソッドで仕上げ"""
+HTML_BUF = []
+"""閉じるときの出力フラグ、自動的に有効"""
+PRINT_FLAG = True
+CALL_STATUS = False
 
 # 予め決めたグローバル変数ゾーン
 HTTP = 'http://'
@@ -33,8 +38,23 @@ PATH_LIST = str(PARSE_URL.path).split('/')
 REQUEST_METHOD = environ['REQUEST_METHOD'] if 'REQUEST_METHOD' in environ else ''
 
 def cgitb_enable():
+    """エラーモードを有効にする"""
     import cgitb
     cgitb.enable()
+
+def enable(*print_flag):
+    """自身を呼び出す、引数はPRINT_FLAGの設定"""
+    global CALL_STATUS, PRINT_FLAG
+    if bool(print_flag):
+        if isinstance(print_flag[0], bool):
+            PRINT_FLAG = print_flag[0]
+    if PRINT_FLAG and not CALL_STATUS:
+        print("Content-Type: text/html; charset=UTF-8\r\n")
+    CALL_STATUS = True
+
+def get_html():
+    """バッファされたHTMLを統合して書き出す"""
+    return ''.join(HTML_BUF)
 
 def get_post():
     """Postの取得を有効にする"""
@@ -103,6 +123,13 @@ def meta(name, content):
     """meta属性の中でnameとcontentの追加のみ"""
     return attr('meta', {'name': str(name), 'content': str(content)})
 
+def read_txt(file_path):
+    _encoding = "utf-8_sig"
+    _f = open(file_path, 'r', encoding=_encoding)
+    _data = _f.read()
+    _f.close()
+    return _data
+
 def has_key(key, dic):
     """CGIから入っているかどうかの確認"""
     if isinstance(dic[0], dict):
@@ -145,13 +172,14 @@ class Base:
         self.close()
     def __endtag(self):
         if self.object_flag:
-            self.indent -= 1
+            self.indent -= (1 if self.indent > 0 else self.indent)
             self.out("</" + self.name + ">" + ('\n' if self.not_crlf else ''))
             self.object_flag = False
     def close(self):
         """明示的に閉じるときのメソッド"""
         self.closedefs()
         self.__endtag()
+        self.enddefs()
         return self.super_obj
     def startdefs(self, *args):
         """継承用、<base>タグの始まりより前に実行する関数"""
@@ -177,16 +205,20 @@ class Base:
     def closedefs(self, *args):
         """継承用、</base>タグの手前に実行する関数"""
         pass
+    def enddefs(self, *args):
+        """継承用、</base>タグの後に実行する関数"""
+        pass
     def __enter__(self):
         return self
     def __exit__(self, types, value, traceback):
         self.close()
     def out(self, text):
-        """インデントの状態に合わせて出力"""
+        """インデントの状態に合わせて出力、配列に格納される"""
         out_indent = ('' if (self.object_flag and self.not_crlf) \
         else (self.tabstr * self.indent))
-        out_str = out_indent + str(text).replace('\n', '\n' + out_indent)
-        print(out_str, end='' if self.not_crlf else '\n')
+        out_str = out_indent + str(text).replace('\n', '\n' + out_indent) \
+            + ('' if self.not_crlf else '\n')
+        HTML_BUF.append(out_str)
     def load_css(self, path):
         """外部スタイルシートの設定"""
         self.out('<link rel="stylesheet" href="' + path + '" type="text/css" />')
@@ -198,7 +230,16 @@ class Html(Base):
     """htmlタグのオブジェクト"""
     name = "html"
     def startdefs(self, *args):
+        global CALL_STATUS
+        if not CALL_STATUS:
+            enable()
+        HTML_BUF.clear()        # 初期化処理
         self.out("<!DOCTYPE html>")
+    def enddefs(self, *args):
+        global PRINT_FLAG, CALL_STATUS
+        if PRINT_FLAG and CALL_STATUS:
+            print(get_html())
+            CALL_STATUS = False
 
 class Head(Base):
     """headタグのオブジェクト"""
@@ -259,3 +300,13 @@ class Form(Base):
                 if isinstance(args[0][self.e_ofs], str):
                     self.elem.update({'method': args[0][self.e_ofs]})
                     self.e_ofs += 1
+
+class Style(Base):
+    """スタイルシート専用"""
+    name = 'style'
+    def startdefs(self, *args):
+        self.elem.update({'type': 'text/css'})
+
+class Script(Base):
+    """Script専用"""
+    name = 'script'
