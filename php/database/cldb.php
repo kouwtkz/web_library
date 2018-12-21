@@ -15,6 +15,7 @@ if (isset($flag_log)) { Cldb::$flag_log = (bool)$flag_log; }
 
 class Cldb{
     private $access_id = "access_id";
+    public static $access_cookie_date = "+30 day";  # cookie標準の保存日付
     public static $access_reboot = false;   # ログを再びとるかどうか
     # セッションID_時刻の35進数をアクセスIDとしてるため、同一セッションでも異なる値にできる
     public static $cookie_reboot = false;   # クッキーをリセットするかどうか
@@ -70,8 +71,8 @@ class Cldb{
             $time = time() - 42000;
             unset($_COOKIE[$name]);
         } else {
-            if (is_null($time)) {   # デフォルトで雑に30日後まで
-                $time = time() + (30 * 24 * 60 * 60);
+            if (is_null($time)) {
+                $time = strtotime($access_cookie_date);
             } elseif ($time === "today") {  # 今日までの日付でクッキーを設置
                 $time = strtotime(date("y-m-d",strtotime("+1 day"))) - 1;
             } elseif (preg_match("/([\+\-]?\d*)\s*(\w*)/" , $time, $m)){
@@ -139,7 +140,7 @@ class Cldb{
                              VALUES ('$addr', '$user_agent', '$access_id','$dcrt','$scnm')";
                             $this->execute($sql);
                         } else {
-                            self::set_cookie($this->ignore_access_cookie, 1, null, "/");
+                            self::set_cookie($this->ignore_access_cookie, 1, "+3 year");
                         }
                     }
                     $_SESSION[$this->access_id] = $access_id;
