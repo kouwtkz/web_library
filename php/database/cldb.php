@@ -72,7 +72,7 @@ class Cldb{
             unset($_COOKIE[$name]);
         } else {
             if (is_null($time)) {
-                $time = strtotime($access_cookie_date);
+                $time = strtotime(self::$access_cookie_date);
             } elseif ($time === "today") {  # 今日までの日付でクッキーを設置
                 $time = strtotime(date("y-m-d",strtotime("+1 day"))) - 1;
             } elseif (preg_match("/([\+\-]?\d*)\s*(\w*)/" , $time, $m)){
