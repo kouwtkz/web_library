@@ -1,13 +1,35 @@
 var cws = {};
-cws.php_path = '';
-cws.defaultAnsynch = true;
-cws.result = null;
-cws.resultstr = "";
-cws.conmode = false;
-cws.querys = '';
-cws.domain = location.host;
-cws.basehost = location.protocol + "//" + cws.domain;
+cws.to = {}
+// 配列の要素と内容を入れ替える
+cws.to.turnover = function(obj){
+    var retv = {};
+    Object.keys(obj).filter(
+    (value) => {retv[obj[value]] = value; return false;});
+    return retv;
+}
 
+cws.var = {};
+cws.var.php_path = '';
+cws.var.defaultAnsynch = true;
+cws.var.result = null;
+cws.var.resultstr = "";
+cws.var.conmode = false;
+cws.var.querys = '';
+cws.var.domain = location.host;
+cws.var.basehost = location.protocol + "//" + cws.var.domain;
+cws.var.re = {};
+cws.var.date_default = 'Y-m-d';
+cws.var.braceDelimiters = {'(':')', '{':'}', '[':']', '<':'>'};
+cws.var.re.time = /\d+[\-\/\:]\d+/;
+
+// キーが存在するかどうかのチェック
+Object.prototype.exists = function(key){
+    if (key === undefined)
+        return false;
+    else {
+        return Object.keys(this).indexOf(key) >= 0;
+    }
+}
 cws.get = {};
 cws.get.domain = function(url){
     const base = url.match(/\/\/.*?\//);
@@ -20,7 +42,7 @@ cws.get.basehost = function(url){
 cws.get.dir = function(url){
     return (url + "/.").match(/^.*?\./)[0].match(/^.*\//)[0].replace(/\/+$/,"/");
 }
-cws.dir = cws.get.dir(cws.basehost + location.pathname);
+cws.dir = cws.get.dir(cws.var.basehost + location.pathname);
 cws.get.key = function(ary = {}, key = "", nullval = '') {
     return (key in ary) ? ary[key] : nullval;
 }
@@ -47,7 +69,7 @@ cws.get.link = function(link){
     link = String(link);
     if (link.match(/\//)) {
         if (link.match(/^\//)) {
-            return cws.basehost + link;
+            return cws.var.basehost + link;
         } else {
             return link;
         }
@@ -55,19 +77,118 @@ cws.get.link = function(link){
         return cws.dir + link;
     }
 }
+cws.get.ext = function(link){
+    link = String(link);
+    var m = link.match(/\.([^\.]*)$/)
+    if (m) {
+        m = m[1].match(/^\w*/);
+        if (m)
+            return m[0];
+        else
+            return '';
+    } else {
+        return '';
+    }
+}
+// デフォルトで今日の日付
+cws.get.date = function(format_str = '', date = new Date()){
+    var d = date;
+    switch (typeof(d)){
+        case 'string':
+            d = new Date(d);
+            if (String(d) === "Invalid Date"){
+                console.log(String(date) + ' <日付形式じゃないです>');
+                return date;
+            }
+            break;
+    }
+    switch (typeof(format_str)){
+        case 'string':
+            if (format_str == '') format_str = cws.var.date_default;
+            break;
+        default:
+            format_str = 'Y-m-d';
+            break;
+    }
+    var rp = format_str;
+    var year = d.getFullYear();
+    rp = rp.replace(/Y/, year);
+    rp = rp.replace(/y/, year.toString().slice(-2));
+    var month = d.getMonth() + 1;
+    rp = rp.replace(/n/, month);
+    rp = rp.replace(/m/, ("0" + month).slice(-2));
+    var day = d.getDate();
+    rp = rp.replace(/j/, day);
+    rp = rp.replace(/d/, ("0" + day).slice(-2));
+    var week = d.getDay();
+    rp = rp.replace(/w/, week);
+    rp = rp.replace(/WW/, [ "日", "月", "火", "水", "木", "金", "土" ][week]);
+    var hour = d.getHours();
+    var hour2 = hour % 12;
+    var hour2i = (hour / 12 < 1) ? 0 : 1;
+    rp = rp.replace(/G/, hour);
+    rp = rp.replace(/g/, hour2);
+    rp = rp.replace(/H/, ("0" + hour).slice(-2));
+    rp = rp.replace(/h/, ("0" + hour2).slice(-2));
+    rp = rp.replace(/AA/, ["午前", "午後"][hour2i]);
+    var minute = d.getMinutes();
+    rp = rp.replace(/I/, minute);
+    rp = rp.replace(/i/, ("0" + minute).slice(-2));
+    var second = d.getSeconds();
+    rp = rp.replace(/S/, second);
+    rp = rp.replace(/s/, ("0" + second).slice(-2));
+
+    rp = rp.replace(/A/, ["AM", "PM"][hour2i]);
+    rp = rp.replace(/a/, ["am", "pm"][hour2i]);
+    rp = rp.replace(/W/, [ "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" ][week]);
+    return rp;
+}
+cws.get.date_until = function(date = new Date()){
+    var y = date.getFullYear();
+    var m = date.getMonth() + 1;
+    var d = date.getDate();
+    d_until = new Date(y + '-' + m + '-' + d);
+    d_until.setDate(d + 1);
+    d_until.setMilliseconds(d_until.getMilliseconds() - 1);
+    return d_until;
+}
+
 // URLの?以降を取得する関数、更に取得したものを定義する
-cws.get.query = function(href = location.href) {
+cws.get.query = function(href = location.href, auto_newDate = true) {
     let arg = new Object;
-    const spl = location.href.split('?')
+    const spl = href.split('?')
     const qry = spl[spl.length - 1];
     const pair = qry.split('&');
     for (let i = 0; pair[i]; i++) {
         let kv = pair[i].split('=');
-        arg[kv[0]] = kv[1];
+        let value = decodeURI(kv[1]);
+        if (typeof(value) === 'string' && auto_newDate) {
+            if (value === '') {}
+            else if (value.match(cws.var.re.time)){
+                try{
+                    value = new Date(value);
+                } catch(e) {}
+            } else if (!isNaN(value)){
+                value = Number(value);
+            } else {
+                try{
+                    var e = eval(value);
+                    switch (typeof(e)){
+                        case 'number':
+                        case 'string':
+                            break;
+                        default:
+                            value = e;
+                            break;
+                    }
+                } catch(e) {}
+            }
+        }
+        arg[kv[0]] = value;
     }
     return arg;
 }
-cws.querys = cws.get.query();
+cws.var.querys = cws.get.query();
 // 最初にキャッシュを適用させつつ、更新後は読み込ませるプログラム
 cws.get.ref = function(args = []) {
     if (typeof(args) !== 'object') {
@@ -80,7 +201,7 @@ cws.get.ref = function(args = []) {
         json: args,
         ansynch: false
     });
-    args = JSON.parse(cws.result);
+    args = JSON.parse(cws.var.result);
     for (let i = 0; i < args.length; i++) {
         let item = args[i];
         if (typeof(item) !== 'object') {
@@ -115,6 +236,51 @@ cws.get.date36 = function(){
     const d = new Date;
     return Number('' + d.getFullYear() + d.getMonth() + 0 + d.getDay() + d.getHours() + d.getMinutes() + d.getSeconds() + d.getMilliseconds()).toString(36);
 }
+cws.array = {};
+cws.array.concat = function(array_a = {}, array_b = {}){
+    Object.keys(array_b).map(function(value){
+        array_a[value] = array_b[value];
+    });
+    return array_a;
+}
+cws.array.max_page = function(array, max = 200){
+    var current = -1;
+    var recursion = function(arg_array){
+        return arg_array.filter((value) => {
+            if (Array.isArray(value)){
+                return recursion(value)
+            } else {
+                current++;
+                return false;
+            }
+        });
+    }
+    recursion(array);
+    return Math.floor(current / max) + 1;
+}
+cws.array.from_page = function(array = [], page = 1, max = 200){
+    var r_array = [];
+    var current = -1;
+    var min_current = max * (page - 1);
+    var max_current = max * page - 1;
+    var recursion = function(arg_array){
+        return arg_array.filter((value) => {
+            if (Array.isArray(value)){
+                return recursion(value)
+            } else {
+                current++;
+                var r_bool = (min_current <= current) && (current <= max_current) ;
+                if (r_bool){
+                    r_array.push(value);
+                }
+                return r_bool;
+            }
+        });
+    }
+    recursion(array);
+    return r_array;
+}
+
 cws.json = {};
 cws.json.tostr = function(json_arg) {
     switch (typeof(json_arg)) {
@@ -134,8 +300,7 @@ cws.json.tostr = function(json_arg) {
     }
     return null;
 }
-cws.to = {}
-cws.to.request_array = function(request_ary = null, path = cws.php_path){
+cws.to.request_array = function(request_ary = null, path = cws.var.php_path){
     let rq = cws.get.object(request_ary, {});
     const query_str = (path + "?").replace(/^.*?\?/,"").replace(/.$/, "");
     const spl = query_str.split("&");
@@ -146,7 +311,7 @@ cws.to.request_array = function(request_ary = null, path = cws.php_path){
     }
     return rq;
 }
-cws.to.geturl = function(array_list = null, path = cws.php_path) {
+cws.to.geturl = function(array_list = null, path = cws.var.php_path) {
     const rq = cws.to.request_array(array_list, path);
     path = path.replace(/\?.*$/, "");
     let list = [];
@@ -160,7 +325,7 @@ cws.to.geturl = function(array_list = null, path = cws.php_path) {
         return path;
     }
 }
-cws.to.form = function(array_list = null, filename_list = null, formdata_obj = null, path = cws.php_path){
+cws.to.form = function(array_list = null, filename_list = null, formdata_obj = null, path = cws.var.php_path){
     const rq = cws.to.request_array(array_list, path);
     formdata_obj = cws.get.object(formdata_obj, new FormData());
     filename_list = cws.get.object(filename_list, {});
@@ -181,6 +346,47 @@ cws.to.form = function(array_list = null, filename_list = null, formdata_obj = n
     }
     return formdata_obj;
 }
+cws.to.herfWidth = function(strVal, other_replace = true){
+    // 半角変換
+    var halfVal = strVal.replace(/[！-～]/g,
+    function( tmpStr ) {
+        // 文字コードをシフト
+        return String.fromCharCode( tmpStr.charCodeAt(0) - 0xFEE0 );
+    }
+    );
+    if (other_replace) {
+        // 文字コードシフトで対応できない文字の変換
+        return halfVal.replace(/”/g, "\"")
+        .replace(/’/g, "'")
+        .replace(/‘/g, "`")
+        .replace(/￥/g, "\\")
+        .replace(/　/g, " ")
+        .replace(/〜/g, "~");
+    } else {
+        return halfVal;
+    }
+}
+cws.to.fullWidth = function(strVal, other_replace = true){
+    // 半角変換
+    var fullVal = strVal.replace(/[!-~]/g,
+    function( tmpStr ) {
+        // 文字コードをシフト
+        return String.fromCharCode( tmpStr.charCodeAt(0) + 0xFEE0 );
+    }
+    );
+    if (other_replace) {
+        // 文字コードシフトで対応できない文字の変換
+        return fullVal.replace(/”/g, "\"")
+        .replace(/'/g, "’")
+        .replace(/`/g, "‘")
+        .replace(/\\/g, "￥")
+        .replace(/ /g, "　")
+        .replace(/~/g, "〜");
+    } else {
+        return fullVal;
+    }
+}
+
 cws.get.parelm = function(elem, childuse = "URL"){
     const prt = elem.parentNode;
     if (prt === undefined || prt === null) { return elem; }
@@ -197,6 +403,118 @@ cws.get.partag = function(elem, tagname = "html") {
     } else {
         return elem;
     }
+}
+cws.get.location = function(href) {
+    var l = document.createElement("a");
+    l.href = href;
+    return l;
+};
+cws.get.delimiter = function(re) {
+    var delimiter = null;
+    var braceDelimiters = cws.var.braceDelimiters;
+    if (ret = re.match(/^([^a-zA-Z0-9\\]).*([^a-zA-Z0-9\\])[a-zA-Z]*$/)) {
+        // デリミタが正しい組み合わせになっているかをチェック
+        var [dummy, leftDlmt, rightDlmt] = ret;
+        if (braceDelimiters[leftDlmt] && rightDlmt === braceDelimiters[leftDlmt] ||
+            leftDlmt === rightDlmt
+        ) {
+            delimiter = leftDlmt;
+        }
+    }
+    return delimiter;
+}
+cws.get.split_space = function(str = ''){
+    return str.split(/\s+/).filter((value) => {return value !== ''});
+}
+cws.get.hook_search = function(keyword, w_mode = true){
+    u_keyword = keyword;
+    u_keyword = u_keyword.replace(/\s+OR\s+/g,"||").replace(/\s+AND\s+/g,"&&");
+    var keywords = cws.get.split_space(u_keyword).map((v) => {
+        var ret = v
+            .replace(/\\\\/g,"\\\_")
+            .replace(/\\\|/g, "\\\:").replace(/\\\&/g, "\\\;")
+            .replace(/\|\|/g," OR ").replace(/\&\&/g," AND ")
+            .replace(/\\\:/g,"\\\|").replace(/\\\;/g,"\\\&")
+            .replace(/\\\&/g,"&")
+            .replace(/\\\|/g,"|")
+            .replace(/\\\_/g,"\\")
+            ;
+        var ret = cws.get.split_space(ret).map((re) => {
+            var delimiter = cws.get.delimiter(re);
+            if (delimiter === '/'){
+                var v;
+                try {
+                    v = eval(re);
+                } catch(e) {
+                    v = re;
+                }
+                return v
+            } else{
+                if (w_mode) {
+                    switch(re){
+                        case "OR": case "AND":
+                            return re;
+                        default:
+                            var hw = cws.to.herfWidth(re);
+                            var fw = cws.to.fullWidth(re);
+                            if (hw == fw) {
+                                return re;
+                            }
+                            else {
+                                return [hw, 'OR', fw];
+                            }
+                    }
+                } else {
+    
+                    return re;
+                }
+            }
+        });
+        if (ret.length > 1){
+            return ret;
+        } else {
+            return ret[0];
+        }
+    });
+    return keywords;
+}
+cws.get.search = function(keyword, str, w_mode = true) {
+    var result = true, m_result = false;
+    var trigger = false, or_trigger = false;
+    keywords = keyword;
+    if (!Array.isArray(keywords)) keywords = cws.get.hook_search(keywords, w_mode);
+
+    try {
+        keywords.filter((value) => {
+            if (Array.isArray(value)) {
+                m_result = cws.get.search(value, str);
+            } else {
+                trigger = true;
+                switch (value) {
+                case 'OR':
+                    or_trigger = true;
+                    break;
+                case 'AND':
+                    break;
+                default:
+                    trigger = false;
+                    m_result = str.match(value);
+                    break;
+                }
+            }
+            if (trigger) {
+                trigger = false;
+            } else {
+                if (or_trigger) {
+                    result = result || Boolean(m_result);
+                    or_trigger = false;
+                } else {
+                    result = result && Boolean(m_result);
+                }
+            }
+        });
+    } catch(e) {}
+    return result;
 }
 
 // Element書き込み関数、FormDataから書き出すこともできます（主にデータ送信に使用）
@@ -260,17 +578,44 @@ cws.write.elem = function(element = "div", inline = "", insertobj = document, id
         insertobj.innerHTML += insertstr;
     }
 }
+// URLにクエリを書き出す、ページ移動はしない
+cws.write.query = function(query, date_format = cws.var.date_default){
+    var path = location.pathname;
+    if (typeof(query)==='undefined') query = {};
+    function query_equal(obj){
+        return Object.keys(obj).map(function(value){
+            var obj_value = obj[value];
+            switch (toString.call(obj_value)){
+                case '[object Date]':
+                    if (String(obj_value) === "Invalid Date")
+                        obj_value = null;
+                    else
+                        obj_value = cws.get.date(date_format, obj_value);
+                    break;
+            }
+            if(obj_value !== null)
+                return String(value) + '=' + obj_value;
+            else
+                return null;
+        });
+    }
+    var query_str = query_equal(query)
+        .filter((value) => {return value !== null}).join('&');
+    if (query_str != '') query_str = '?' + query_str;
+    var state_url = path + query_str;
+    window.history.pushState(null, null, state_url);
+    return state_url;
+}
 
 cws.ajax = {};
 cws.ajax.onload = function(){};
 // argsの引数は "ansynch", "onload", "method", "form", "request", "catch", "type"を検知、取得する
-// デフォルトではserver.phpを呼び出します、特に指定なければPOSTで送信します
-cws.ajax.run = function(target = cws.php_path, args = {}, filename_list = {}, opt = 0) {
+cws.ajax.run = function(target = cws.var.php_path, args = {}, filename_list = {}, opt = 0) {
     try {
         if (typeof(args) !== "object" || args === null) {args = {}};
         let ansynch = cws.get.key(args, "ansynch", true);
         if (ansynch === null) {
-            ansynch = cws.defaultAnsynch;
+            ansynch = cws.var.defaultAnsynch;
         }
         const catchfunc = cws.get.key(args, "catch", null);
         const retfunc = cws.get.key(args, "onload", function(){});
@@ -301,9 +646,9 @@ cws.ajax.run = function(target = cws.php_path, args = {}, filename_list = {}, op
         xr.open(mtd, target, ansynch);
         xr.send(fm);
         const localrun = function(lxr) {
-            cws.result = lxr.response;
-            cws.resultstr = lxr.responseText;
-            cws.conmode = true;
+            cws.var.result = lxr.response;
+            cws.var.resultstr = lxr.responseText;
+            cws.var.conmode = true;
             retfunc(lxr);
             cws.onload(lxr);
         }
@@ -311,7 +656,7 @@ cws.ajax.run = function(target = cws.php_path, args = {}, filename_list = {}, op
             xr.onload = function() {
                 localrun(this);
             }
-            cws.conmode = false;
+            cws.var.conmode = false;
         } else {
             localrun(xr);
         }
@@ -326,7 +671,7 @@ cws.ajax.run = function(target = cws.php_path, args = {}, filename_list = {}, op
     }
 }
 // runajaxにjsonを含み、Jsonを渡すプログラム
-cws.ajax.json = function(target = cws.php_path, json = "", args = {}, opt = 0) {
+cws.ajax.json = function(target = cws.var.php_path, json = "", args = {}, opt = 0) {
     let fm = this.get.key(args, "form");
     if (typeof(fm) !== "object") {
         fm = new FormData();
@@ -374,7 +719,7 @@ cws.post.open = function(VALorELEM = {}, url = null, target = "", formdata_obj =
     loadfunc = function(e){
         e.submit();
         if (opt & 4) { VALorELEM.setAttribute("target", target); }
-        if (cws.domain === cws.get.domain(url)) {
+        if (cws.var.domain === cws.get.domain(url)) {
             setTimeout(()=>{
                 cws.post.child.addEventListener("load", cws.post.onload(), false);
             }, 5);
@@ -406,4 +751,8 @@ cws.storage.get = function(key) {
     const getstr = storage[key];
     if (typeof(getstr) === "undefined") getstr = "";
     return getstr;
+}
+
+function obj2array(obj){
+    return Object.keys(obj).map(function (key) {return obj[key]});
 }
