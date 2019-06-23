@@ -22,14 +22,6 @@ cws.var.date_default = 'Y-m-d';
 cws.var.braceDelimiters = {'(':')', '{':'}', '[':']', '<':'>'};
 cws.var.re.time = /\d+[\-\/\:]\d+/;
 
-// キーが存在するかどうかのチェック
-Object.prototype.exists = function(key){
-    if (key === undefined)
-        return false;
-    else {
-        return Object.keys(this).indexOf(key) >= 0;
-    }
-}
 cws.get = {};
 cws.get.domain = function(url){
     const base = url.match(/\/\/.*?\//);
@@ -147,7 +139,7 @@ cws.get.date_until = function(date = new Date()){
     var y = date.getFullYear();
     var m = date.getMonth() + 1;
     var d = date.getDate();
-    d_until = new Date(y + '-' + m + '-' + d);
+    d_until = new Date(y + '-' + m + '-' + d + 'T00:00');
     d_until.setDate(d + 1);
     d_until.setMilliseconds(d_until.getMilliseconds() - 1);
     return d_until;
@@ -243,6 +235,15 @@ cws.array.concat = function(array_a = {}, array_b = {}){
     });
     return array_a;
 }
+// キーが存在するかどうかのチェック
+cws.array.exists = function(key, obj = this){
+    if (key === undefined)
+        return false;
+    else {
+        return Object.keys(obj).indexOf(key) >= 0;
+    }
+}
+
 cws.array.max_page = function(array, max = 200){
     var current = -1;
     var recursion = function(arg_array){
@@ -427,93 +428,116 @@ cws.get.split_space = function(str = ''){
     return str.split(/\s+/).filter((value) => {return value !== ''});
 }
 cws.get.hook_search = function(keyword, w_mode = true){
-    u_keyword = keyword;
-    u_keyword = u_keyword.replace(/\s+OR\s+/g,"||").replace(/\s+AND\s+/g,"&&");
-    var keywords = cws.get.split_space(u_keyword).map((v) => {
-        var ret = v
-            .replace(/\\\\/g,"\\\_")
-            .replace(/\\\|/g, "\\\:").replace(/\\\&/g, "\\\;")
-            .replace(/\|\|/g," OR ").replace(/\&\&/g," AND ")
-            .replace(/\\\:/g,"\\\|").replace(/\\\;/g,"\\\&")
-            .replace(/\\\&/g,"&")
-            .replace(/\\\|/g,"|")
-            .replace(/\\\_/g,"\\")
-            ;
-        var ret = cws.get.split_space(ret).map((re) => {
-            var delimiter = cws.get.delimiter(re);
-            if (delimiter === '/'){
-                var v;
-                try {
-                    v = eval(re);
-                } catch(e) {
-                    v = re;
+    var hook_class = function(value = '', mode = '', mode_not = false){
+        this.value = value;
+        this.mode = String(mode);
+        this.mode_not = Boolean(mode_not);
+    }
+    var hook_list = [];
+    var hook_mode = '';
+    var hook_not = false;
+    var hook_value;
+    var keywords = cws.get.split_space(keyword).map((v) => {
+        this.escape = function(v){
+            return (' ' + v).replace(/\\\\/g,"\\\?")
+                .replace(/\\\|/g, "\\\:").replace(/\\\&/g, "\\\;").replace(/\\\ /g, "\\\_")
+                .replace(/\|\|/g," OR ").replace(/\&\&/g," AND ").replace(/(\s+)\-/, ' NOT ')
+                .replace(/^\s+/, "");
+        }
+        this.revive = function(v){
+            return v.replace(/\\\:/g,"|").replace(/\\\;/g,"&")
+                .replace(/\\\_/g," ").replace(/\\\?/g,"\\")
+        }
+        var ret = this.escape(v);
+        var ret = cws.get.split_space(ret+' ').map((re) => {
+        switch(re){
+            case "OR":
+                hook_mode = '|';
+                return null;
+            case "AND":
+                hook_mode = '&';
+                return null;
+            case "NOT":
+                hook_not = true;
+                return null;
+            default:
+                var delimiter = cws.get.delimiter(re);
+                var add_val = this.revive(re);
+                // 正規表現だった場合の変形
+                if (delimiter === '/'){
+                    var v;
+                    try {
+                        add_val = eval(add_val);
+                    } catch(e) {}
                 }
-                return v
-            } else{
-                if (w_mode) {
-                    switch(re){
-                        case "OR": case "AND":
-                            return re;
-                        default:
-                            var hw = cws.to.herfWidth(re);
-                            var fw = cws.to.fullWidth(re);
-                            if (hw == fw) {
-                                return re;
-                            }
-                            else {
-                                return [hw, 'OR', fw];
-                            }
+
+                if (typeof(add_val) === 'string' && w_mode) {
+                    var hw = cws.to.herfWidth(add_val);
+                    var fw = cws.to.fullWidth(add_val);
+                    if (hw !== fw) {
+                        add_val = [new hook_class(hw, ''), new hook_class(fw, '|')];
+                    }
+                }
+                if (hook_mode === '') {
+                    // 追加
+                    if (add_val !== ''){
+                        hook_value = [new hook_class(add_val, '', hook_not)];
+                        hook_list.push(hook_value);
+                        hook_not = false;
+                        return hook_value;
+                    } else {
+                        hook_not = false;
+                        return null;
                     }
                 } else {
-    
-                    return re;
+                    // 前のリスト増分
+                    if (add_val !== ''){
+                        hook_value.push(new hook_class(add_val, hook_mode, hook_not));
+                    }
+                    hook_mode = '';
+                    hook_not = false;
+                    return null;
+                }
                 }
             }
-        });
-        if (ret.length > 1){
-            return ret;
-        } else {
-            return ret[0];
-        }
-    });
+        ).filter((v) => {return v !== null;});
+        return ret;
+    }).filter((v) => {return v.length > 0;});
     return keywords;
 }
 cws.get.search = function(keyword, str, w_mode = true) {
-    var result = true, m_result = false;
-    var trigger = false, or_trigger = false;
-    keywords = keyword;
+    var result = true;
+    var keywords = keyword;
     if (!Array.isArray(keywords)) keywords = cws.get.hook_search(keywords, w_mode);
-
-    try {
-        keywords.filter((value) => {
-            if (Array.isArray(value)) {
-                m_result = cws.get.search(value, str);
+    
+    var s_search = function(value){
+        var or_trigger = false;
+        var l_result = true, m_result;
+        value.filter((hook) => {
+            if (Array.isArray(hook)) {
+                m_result = s_search(hook);
             } else {
-                trigger = true;
-                switch (value) {
-                case 'OR':
-                    or_trigger = true;
-                    break;
-                case 'AND':
-                    break;
-                default:
-                    trigger = false;
-                    m_result = str.match(value);
-                    break;
+                or_trigger = hook.mode === '|';
+                if (Array.isArray(hook.value)) {
+                    m_result = s_search(hook.value);
+                } else {
+                    m_result = str.match(hook.value);
                 }
             }
-            if (trigger) {
-                trigger = false;
+            m_result = Boolean(m_result);
+            m_result = (function(a, b){return Boolean((a & !b) | (!a & b));})(m_result, hook.mode_not);
+            if (or_trigger) {
+                l_result = l_result || Boolean(m_result);
+                or_trigger = false;
             } else {
-                if (or_trigger) {
-                    result = result || Boolean(m_result);
-                    or_trigger = false;
-                } else {
-                    result = result && Boolean(m_result);
-                }
+                l_result = l_result && Boolean(m_result);
             }
         });
-    } catch(e) {}
+        return l_result;
+    }
+    keywords.filter((v) => {
+        result = result && s_search(v);
+    });
     return result;
 }
 
@@ -585,6 +609,11 @@ cws.write.query = function(query, date_format = cws.var.date_default){
     function query_equal(obj){
         return Object.keys(obj).map(function(value){
             var obj_value = obj[value];
+            switch(typeof(obj_value)){
+                case 'undefined':
+                    obj_value = null;
+                    break;
+            }
             switch (toString.call(obj_value)){
                 case '[object Date]':
                     if (String(obj_value) === "Invalid Date")
