@@ -136,11 +136,8 @@ cws.get.date = function(format_str = '', date = new Date()){
     return rp;
 }
 cws.get.date_until = function(date = new Date()){
-    var y = date.getFullYear();
-    var m = date.getMonth() + 1;
-    var d = date.getDate();
-    d_until = new Date(y + '-' + m + '-' + d + 'T00:00');
-    d_until.setDate(d + 1);
+    d_until = new Date(cws.get.date('Y-m-dT00:00:00', date));
+    d_until.setDate(date.getDate() + 1);
     d_until.setMilliseconds(d_until.getMilliseconds() - 1);
     return d_until;
 }
