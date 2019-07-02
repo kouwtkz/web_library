@@ -682,7 +682,9 @@ cws.write.style = function(css = '', id_or_object){
         head.appendChild(elem);
     }
     if (css_link) {
+        elem.setAttribute('rel', 'stylesheet')
         elem.setAttribute('src', css)
+        elem.setAttribute('type', 'text/css')
     } else {
         elem.innerHTML = css;
     }
