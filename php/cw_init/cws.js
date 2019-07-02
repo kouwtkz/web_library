@@ -14,7 +14,7 @@ cws.var.defaultAnsynch = true;
 cws.var.result = null;
 cws.var.resultstr = "";
 cws.var.conmode = false;
-cws.var.querys = '';
+cws.var.querys = {};
 cws.var.domain = location.host;
 cws.var.basehost = location.protocol + "//" + cws.var.domain;
 cws.var.re = {};
@@ -146,6 +146,7 @@ cws.get.date_until = function(date = new Date()){
 cws.get.query = function(href = location.href, auto_newDate = true) {
     let arg = new Object;
     const spl = href.split('?')
+    if (spl.length === 1) return {};
     const qry = spl[spl.length - 1];
     const pair = qry.split('&');
     for (let i = 0; pair[i]; i++) {
@@ -165,6 +166,7 @@ cws.get.query = function(href = location.href, auto_newDate = true) {
                     switch (typeof(e)){
                         case 'number':
                         case 'string':
+                        case 'undefined':
                             break;
                         default:
                             value = e;
@@ -213,7 +215,7 @@ cws.get.ref = function(args = []) {
                     }
                 default:
                     {
-                        writetxt = '<script type="text/javascript" id="' + id + '" class="' + cls + '" src="' + rpath + '"></script>';
+                        writetxt = '<script type="text/javascript" id="' + id + '" class="' + cls + '" src="' + rpath + '"><\/script>';
                     }
             }
             document.write(writetxt);
@@ -227,7 +229,7 @@ cws.get.date36 = function(){
 }
 cws.array = {};
 cws.array.concat = function(array_a = {}, array_b = {}){
-    Object.keys(array_b).map(function(value){
+    Object.keys(array_b).forEach(function(value){
         array_a[value] = array_b[value];
     });
     return array_a;
@@ -241,9 +243,10 @@ cws.array.exists = function(key, obj = this){
     }
 }
 
-cws.array.max_page = function(array, max = 200){
+cws.array.max_page = function(array, max = 200, reverse = false){
     var current = -1;
     var recursion = function(arg_array){
+        if (reverse) arg_array = arg_array.reverse();
         return arg_array.filter((value) => {
             if (Array.isArray(value)){
                 return recursion(value)
@@ -590,7 +593,7 @@ cws.write.script = function(inline = "", insertobj = document, id = "", otherelm
     return cws.write.elem("script", "\n" + inline + "\n", docm, id, otherelm, opt)
 };
 cws.write.elem = function(element = "div", inline = "", insertobj = document, id = "", otherelm = "", opt = 0){
-    insertstr = "<" + element + " id = '" + id + "' " + otherelm + ">" + inline + "</script>\n";
+    insertstr = "<" + element + " id = '" + id + "' " + otherelm + ">" + inline + "<\/script>\n";
     if (insertobj.document !== undefined) {
         insertobj.document.write(insertstr);
     } else if(insertobj.getElementById !== undefined) {
@@ -630,23 +633,78 @@ cws.write.query = function(query, date_format = cws.var.date_default){
     if (query_str != '') query_str = '?' + query_str;
     var state_url = path + query_str;
     window.history.pushState(null, null, state_url);
+    cws.var.querys = cws.get.query();
     return state_url;
 }
-
+cws.write.back = function(){
+    window.history.back(-1);
+    return false;
+}
+cws.write.style = function(css = '', id_or_object){
+    var head = document.firstElementChild.firstElementChild;
+    var css_link = Boolean(css.match(/\.css$|\.css\?/i));
+    var elem;
+    if (typeof(id_or_object) === 'string') {
+        var getelem = document.getElementById(id_or_object);
+        if (getelem === null) {
+            if (css_link) {
+                elem = document.createElement('link');
+            } else {
+                elem = document.createElement('style');
+            }
+            head.appendChild(elem);
+            elem.id = id_or_object;
+        } else {
+            elem = getelem;
+        }
+    } else if (toString.call(elem) === "[object HTMLStyleElement]") {
+        if (css_link) {
+            if (elem.tagName === "LINK") {
+                elem = id_or_object;
+            } else {
+                elem = document.createElement('link');
+                head.appendChild(elem);
+            }
+        } else {
+            if (elem.tagName === "STYLE") {
+                elem = id_or_object;
+            } else {
+                elem = document.createElement('style');
+                head.appendChild(elem);
+            }
+        }
+    } else {
+        if (css_link) {
+            elem = document.createElement('link');
+        } else {
+            elem = document.createElement('style');
+        }
+        head.appendChild(elem);
+    }
+    if (css_link) {
+        elem.setAttribute('src', css)
+    } else {
+        elem.innerHTML = css;
+    }
+    return elem;
+}
 cws.ajax = {};
 cws.ajax.onload = function(){};
-// argsの引数は "ansynch", "onload", "method", "form", "request", "catch", "type"を検知、取得する
-cws.ajax.run = function(target = cws.var.php_path, args = {}, filename_list = {}, opt = 0) {
+cws.ajax.result = {};
+// argsの引数は "ansynch", "method", "form", "request", "catch", "type", "filelist"を検知、取得する
+cws.ajax.run = function(target, onload, args = {}, opt = 0) {
+    if (typeof(args) !== "object" || args === null) {args = {}};
+    const catchfunc = cws.get.key(args, "catch", null);
     try {
-        if (typeof(args) !== "object" || args === null) {args = {}};
+        if (typeof(target) !== "string") target = cws.var.php_path;
         let ansynch = cws.get.key(args, "ansynch", true);
         if (ansynch === null) {
             ansynch = cws.var.defaultAnsynch;
         }
-        const catchfunc = cws.get.key(args, "catch", null);
-        const retfunc = cws.get.key(args, "onload", function(){});
         let mtd = cws.get.key(args, "method", "POST").toUpperCase();
         let rq = cws.get.key(args, "request", {});
+        let filename_list = cws.get.key(args, "filelist", {});
+        if (toString.call(onload) !== "[object Function]") onload = cws.ajax.onload
         if (opt & 1) {
             rq["refpath"] = cws.get.str(cws.get.key(args, "refpath", location.pathname))
         }
@@ -672,11 +730,14 @@ cws.ajax.run = function(target = cws.var.php_path, args = {}, filename_list = {}
         xr.open(mtd, target, ansynch);
         xr.send(fm);
         const localrun = function(lxr) {
-            cws.var.result = lxr.response;
-            cws.var.resultstr = lxr.responseText;
-            cws.var.conmode = true;
-            retfunc(lxr);
-            cws.onload(lxr);
+            cws.ajax.result = {
+                status: lxr.status,
+                text: lxr.responseText,
+                conmode: true,
+            }
+            if (lxr.status == 200 || lxr.status == 304) {
+                onload(lxr.response, lxr);
+            }
         }
         if (ansynch) {
             xr.onload = function() {
@@ -774,7 +835,7 @@ cws.storage.out = function(key, value) {
 }
 cws.storage.get = function(key) {
     const storage = sessionStorage;
-    const getstr = storage[key];
+    var getstr = storage[key];
     if (typeof(getstr) === "undefined") getstr = "";
     return getstr;
 }
