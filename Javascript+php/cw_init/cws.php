@@ -482,5 +482,30 @@ function filter_page($array, $page = 1, $max = 9) {
     };
     return array_filter($array, $filter_func);
 }
+// キーワード検索
+function filter_keyword($array, $keyword, $array_func = null) {
+    $chk = preg_replace("/\s+|[\*]+/", "", $keyword);
+    $blank_true = ($chk === "");
+    if (!$blank_true) {
+        $search = new search($keyword);
+    } else {
+        $search = null;
+    }
+    if ($array_func === null) $array_func = function($v){
+        $str = "";
+        if (isset($v->value)) $str .= " $v->value";
+        if (isset($v->tag)) $str .= " $v->tag";
+        if (isset($v->title)) $str .= " $v->title";
+        if (isset($v->subject)) $str .= " $v->subject";
+        return $str;
+    };
+    $filter_func = function ($value) use (&$search, $blank_true, $array_func){
+        if ($blank_true) return true;
+        $array_val = " ".$array_func($value)." ";
+        $result = $search->get_result($array_val);
+        return $result;
+    };
+    return array_filter($array, $filter_func);
+}
 
 ?>
