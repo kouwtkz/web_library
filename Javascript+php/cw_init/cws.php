@@ -492,11 +492,16 @@ function filter_keyword($array, $keyword, $array_func = null) {
         $search = null;
     }
     if ($array_func === null) $array_func = function($v){
-        $str = "";
-        if (isset($v->value)) $str .= " $v->value";
-        if (isset($v->tag)) $str .= " $v->tag";
-        if (isset($v->title)) $str .= " $v->title";
-        if (isset($v->subject)) $str .= " $v->subject";
+        if (is_string($v)){
+            $str = $v;
+        } else {
+            $str = "";
+            if (isset($v->genre)) $str .= " $v->genre";
+            if (isset($v->tag)) $str .= " $v->tag";
+            if (isset($v->title)) $str .= " $v->title";
+            if (isset($v->subject)) $str .= " $v->subject";
+            if (isset($v->value)) $str .= " $v->value";
+        }
         return $str;
     };
     $filter_func = function ($value) use (&$search, $blank_true, $array_func){
@@ -507,5 +512,14 @@ function filter_keyword($array, $keyword, $array_func = null) {
     };
     return array_filter($array, $filter_func);
 }
-
+// 除外検索（自分用）、デフォルトでsrcやhrefが空の場合は除外する
+function filter_exclusion($array, $filter_func = null){
+    if ($filter_func === null) $filter_func = function($v){
+        $result = true;
+        if (isset($v->src)) $result &= ($v->src !== "");
+        if (isset($v->href)) $result &= ($v->href !== "");
+        return $result;
+    };
+    return array_filter($array, $filter_func);
+}
 ?>
