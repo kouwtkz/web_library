@@ -1,5 +1,9 @@
 <?php
 namespace cws;
+/* cws\debug(true); */
+function debug($flag = true) {
+    ini_set('display_errors', $flag?"On":"Off");
+}
 class server{
     function __construct($thisfile = __FILE__){
         $t = $this;
@@ -63,7 +67,7 @@ function title($title_str){
     echo("<title>$title_str</title>\n");
 }
 function sethead_file(string $path_or_name = '', string $filename = '', $download = false) {
-    $path_or_name = docpath($path_or_name);
+    $path_or_name = get_docpath($path_or_name);
     if ($path_or_name==='') {$download = '';}
     $name = '';
     switch(gettype($download)){
@@ -126,27 +130,33 @@ function sethead_type($opt = 1, $charset='utf-8') {
 // 存在しない場合は標準の場合はnullを返す
 function getval($ary, string $key, $nullval = null) { return (isset($ary[$key])) ? $ary[$key] : $nullval; }
 // /から始まる相対パスを変換、そして存在するパスじゃないとき空文字列で返す
-function docpath(string $argpath, $_blank = true) {
-    global $cws;
-    if (strncmp($argpath, '/', 1) === 0) {
-        $cpath = $cws->root.$argpath;
-    } elseif (preg_match("/\//", $argpath)) {
-        $cpath = $argpath;
-    } elseif ($argpath !== '') {
-        $cpath = $cws->refparent.$argpath;
-    } else {
-        $cpath = '';
+function get_docpath(string $path, $_blank = true) {
+    if (strpos($path, "/") === 0) {
+        $path = $_SERVER['DOCUMENT_ROOT'].$path;
+    } elseif(strpos($path, "//") === false) {
+        $path = __DIR__."/$path";
     }
-    if ($cpath !== '' && file_exists($cpath)) {
-        return $cpath;
+    if ($path !== '' && file_exists($path)) {
+        return $path;
     } else {
-        return $cpath ? '' : $cpath;
+        return $path ? '' : $path;
     }
 }
-// 更新日を返してクエリ化する
+// 更新日のクエリだけ返す
+function get_mdate($path) {
+    $path = get_docpath($path);
+    if ($path !== '') {
+        $mdate = filemtime($path);
+    } else {
+        $mdate = 0;
+    }
+    if ($mdate !== 0) {return 'v='.$mdate;} else {return '';}
+
+}
+// 更新日を付与してhtmlの出力
 // あとtxtファイルはtxtとして返される（直接変換する）
 // opt|4はElement要素の出力を同時に行うかどうか
-function setlinkdata($gpath, $tag=null, $opt = 3){
+function set_linkdata($gpath, $tag=null, $opt = 3){
     $bid = getval($tag, 'id');
     if($bid!=null){unset($tag['id']);}
     $btag = '';
@@ -168,12 +178,12 @@ function setlinkdata($gpath, $tag=null, $opt = 3){
         $keys = array_keys($lpath);
         for ($i = 0;$i < count($keys);++$i) {
             $p = preg_replace("/\?.+$/", '', $lpath[$keys[$i]]);
-            $dp = docpath($p);
+            $dp = get_docpath($p);
             $ext = mb_strtolower(pathinfo($p, PATHINFO_EXTENSION));
             if (($opt&1)&&($ext=='txt')) {
                 if ($opt & 2) {
                     if ($dp != '') {
-                        $lpath[$keys[$i]] = array('element'=>null, 'content'=>file_get_contents($dp),'path'=>$p, 'docpath'=>$dp);
+                        $lpath[$keys[$i]] = array('element'=>null, 'content'=>file_get_contents($dp),'path'=>$p, 'get_docpath'=>$dp);
                         if ($opt & 4) {echo($lpath[$keys[$i]]);}
                     }
                 }
@@ -195,7 +205,7 @@ function setlinkdata($gpath, $tag=null, $opt = 3){
                         var_dump($elm);
                     }
                     if (($opt & 4)&&($elm!='')){echo($elm."\n");}
-                    $lpath[$keys[$i]] = array('element'=>$elm, 'content'=>null,'path'=>$p, 'docpath'=>$dp);
+                    $lpath[$keys[$i]] = array('element'=>$elm, 'content'=>null,'path'=>$p, 'get_docpath'=>$dp);
                 }
             }
         }
@@ -214,20 +224,20 @@ function jsrun($str, $onLoadDelete = false){
 }
 // 最初の文字が[か{であるならば、JSON文字列
 // そうでなければパスとみなす
-function json_read($target_json)
+function json_read($target_json, $assoc = false)
 {
     $jsonstr = '';
     if (preg_match('/^[ \n]*[{\[]/', $target_json)) {
         $jsonstr = $target_json;
     } else {
-        $target_json = docpath($target_json);
+        $target_json = get_docpath($target_json);
         if (file_exists($target_json)) {
             $jsonstr = file_get_contents($target_json);
             $jsonstr = mb_convert_encoding($jsonstr, 'UTF8', 'ASCII,JIS,UTF-8,EUC-JP,SJIS-WIN');
         }
     }
     if ($jsonstr !== '') {
-        return json_decode($jsonstr, true);
+        return json_decode($jsonstr, $assoc);
     } else {
         return [];
     }
@@ -250,7 +260,7 @@ function json_out($json, $pretty = false)
 function connect($servise='sqlite',$host='test.db',$dbname='',$user='',$pass='',$charset='utf8'){
     switch(mb_strtolower($servise)){
     case 'sqlite': case '0':
-        $cnct = 'sqlite:'.docpath($host);
+        $cnct = 'sqlite:'.get_docpath($host);
         break;
     case 'mysql': case '1':
         $cnct = 'mysql:host='.$host.';dbname='.$dbname.';charset='.$charset;
@@ -270,9 +280,6 @@ function connect($servise='sqlite',$host='test.db',$dbname='',$user='',$pass='',
         $pdo = null;
     }
     return $pdo;
-}
-function debug($flag = true) {
-    ini_set('display_errors', $flag?"On":"Off");
 }
 
 class hook_class {
@@ -482,7 +489,7 @@ function filter_page($array, $page = 1, $max = 9) {
     };
     return array_filter($array, $filter_func);
 }
-// キーワード検索
+// キーワード検索、デフォルトでよく使いそうなメンバ変数を取得
 function filter_keyword($array, $keyword, $array_func = null) {
     $chk = preg_replace("/\s+|[\*]+/", "", $keyword);
     $blank_true = ($chk === "");
@@ -501,6 +508,7 @@ function filter_keyword($array, $keyword, $array_func = null) {
             if (isset($v->title)) $str .= " $v->title";
             if (isset($v->subject)) $str .= " $v->subject";
             if (isset($v->value)) $str .= " $v->value";
+            if (isset($v->text)) $str .= " $v->text";
         }
         return $str;
     };
@@ -521,5 +529,10 @@ function filter_exclusion($array, $filter_func = null){
         return $result;
     };
     return array_filter($array, $filter_func);
+}
+// 上記のデフォルト設定時の検索
+function filter_all($keyword = "", $page = 1, $max = 9) {
+    global $gallery;
+    return filter_page(filter_keyword(filter_exclusion($gallery), $keyword), $page, $max);
 }
 ?>
