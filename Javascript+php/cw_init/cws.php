@@ -332,7 +332,7 @@ class search{
     function get_hook(){
         return $this->hook;
     }
-    function __construct($keyword = null, $tag_mode = false, $w_mode = true){
+    function __construct($keyword = null, $tag_mode = false, $w_mode = false){
         if ($keyword !== null) $this->hook_define($keyword, $tag_mode, $w_mode);
     }
     static function s_search($str, $value){
@@ -385,7 +385,7 @@ class search{
         array_filter($keywords, $filter_func);
         return $result;
     }
-    function hook_define($keyword, $tag_mode = false, $w_mode = true){
+    function hook_define($keyword, $tag_mode = false, $w_mode = false){
         $this->hook_list = [];
         $this->hook_mode = "";
         $this->hook_not = false;
@@ -395,7 +395,7 @@ class search{
         $this->hook_list = [];
         return $this->hook;
     }
-    private function ret_hook_define($keyword, $w_mode = true){
+    private function ret_hook_define($keyword, $w_mode = false){
         $this->hook = [];
         $me = &$this;
         $map_func = function($v) use ($me, $w_mode){

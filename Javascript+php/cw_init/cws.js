@@ -427,7 +427,7 @@ cws.get.delimiter = function(re) {
 cws.get.split_space = function(str = ''){
     return str.split(/\s+/).filter((value) => {return value !== ''});
 }
-cws.get.hook_search = function(keyword, tag_mode = false, w_mode = true){
+cws.get.hook_search = function(keyword, tag_mode = false, w_mode = false){
     var hook_class = function(value = '', mode = '', mode_not = false, mode_tag = tag_mode){
         this.value = value;
         this.mode = String(mode);
