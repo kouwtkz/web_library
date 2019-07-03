@@ -514,7 +514,7 @@ cws.get.hook_search = function(keyword, tag_mode = false, w_mode = false){
     return keywords;
 }
 cws.get.search = function(subject, keyword) {
-    var str = " " + subject.replace(/[\[](.*)[\]]/, " $1 ").replace("/[\#\s]+/g"," ") + " ";
+    var str = " " + subject.replace(/[\[](.*)[\]]/, " [ $1 ] ").replace("/[\#\s]+/g"," ") + " ";
     var result = true;
     var keywords = keyword;
     if (!Array.isArray(keywords)) keywords = cws.get.hook_search(keywords, w_mode);

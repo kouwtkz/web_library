@@ -371,7 +371,7 @@ class search{
         return $l_result;
     }
     function get_result($subject = "", $keywords = null){
-        $str = " ".preg_replace("/[\#\s]+/", " ", preg_replace("/[\[](.*)[\]]/", " $1 ", $subject))." ";
+        $str = " ".preg_replace("/[\#\s]+/", " ", preg_replace("/[\[](.*)[\]]/", " [ $1 ] ", $subject))." ";
         $result = &$this->result;
         $result = true;
         if ($keywords == null) {
