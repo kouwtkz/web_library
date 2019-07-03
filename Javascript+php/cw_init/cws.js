@@ -427,21 +427,23 @@ cws.get.delimiter = function(re) {
 cws.get.split_space = function(str = ''){
     return str.split(/\s+/).filter((value) => {return value !== ''});
 }
-cws.get.hook_search = function(keyword, w_mode = true){
-    var hook_class = function(value = '', mode = '', mode_not = false){
+cws.get.hook_search = function(keyword, tag_mode = false, w_mode = true){
+    var hook_class = function(value = '', mode = '', mode_not = false, mode_tag = tag_mode){
         this.value = value;
         this.mode = String(mode);
         this.mode_not = Boolean(mode_not);
+        this.mode_tag = Boolean(mode_tag);
     }
     var hook_list = [];
     var hook_mode = '';
     var hook_not = false;
+    var hook_tag = tag_mode;
     var hook_value;
     var keywords = cws.get.split_space(keyword).map((v) => {
         this.escape = function(v){
             return (' ' + v).replace(/\\\\/g,"\\\?")
                 .replace(/\\\|/g, "\\\:").replace(/\\\&/g, "\\\;").replace(/\\\ /g, "\\\_")
-                .replace(/\|\|/g," OR ").replace(/\&\&/g," AND ").replace(/(\s+)\-/, ' NOT ')
+                .replace(/\|\|/g," OR ").replace(/\&\&/g," AND ").replace(/(\s+)\-/g, ' NOT ').replace(/(\s+)\#/g, ' TAG ')
                 .replace(/^\s+/, "");
         }
         this.revive = function(v){
@@ -460,6 +462,9 @@ cws.get.hook_search = function(keyword, w_mode = true){
             case "NOT":
                 hook_not = true;
                 return null;
+            case "TAG":
+                hook_tag = true;
+                return null;
             default:
                 var delimiter = cws.get.delimiter(re);
                 var add_val = this.revive(re);
@@ -475,27 +480,30 @@ cws.get.hook_search = function(keyword, w_mode = true){
                     var hw = cws.to.herfWidth(add_val);
                     var fw = cws.to.fullWidth(add_val);
                     if (hw !== fw) {
-                        add_val = [new hook_class(hw, ''), new hook_class(fw, '|')];
+                        add_val = [new hook_class(hw, '', false, hook_tag), new hook_class(fw, '|', false, hook_tag)];
                     }
                 }
                 if (hook_mode === '') {
                     // 追加
                     if (add_val !== ''){
-                        hook_value = [new hook_class(add_val, '', hook_not)];
+                        hook_value = [new hook_class(add_val, '', hook_not, hook_tag)];
                         hook_list.push(hook_value);
                         hook_not = false;
+                        hook_tag = false;
                         return hook_value;
                     } else {
                         hook_not = false;
+                        hook_tag = false;
                         return null;
                     }
                 } else {
                     // 前のリスト増分
                     if (add_val !== ''){
-                        hook_value.push(new hook_class(add_val, hook_mode, hook_not));
+                        hook_value.push(new hook_class(add_val, hook_mode, hook_not, hook_tag));
                     }
                     hook_mode = '';
                     hook_not = false;
+                    hook_tag = false;
                     return null;
                 }
                 }
@@ -505,7 +513,8 @@ cws.get.hook_search = function(keyword, w_mode = true){
     }).filter((v) => {return v.length > 0;});
     return keywords;
 }
-cws.get.search = function(keyword, str, w_mode = true) {
+cws.get.search = function(subject, keyword) {
+    var str = " " + subject.replace("/[\#\s]+/g"," ") + " ";
     var result = true;
     var keywords = keyword;
     if (!Array.isArray(keywords)) keywords = cws.get.hook_search(keywords, w_mode);
@@ -521,7 +530,13 @@ cws.get.search = function(keyword, str, w_mode = true) {
                 if (Array.isArray(hook.value)) {
                     m_result = s_search(hook.value);
                 } else {
-                    m_result = str.match(hook.value);
+                    var hook_val = hook.value;
+                    if (typeof(hook_val) === "string") {
+                        if (hook.mode_tag) {
+                            hook_val = " " + hook_val + " ";
+                        }
+                    }
+                    m_result = str.match(hook_val);
                 }
             }
             m_result = Boolean(m_result);
