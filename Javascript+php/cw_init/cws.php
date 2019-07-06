@@ -8,15 +8,15 @@ class server{
     function __construct($thisfile = __FILE__){
         $t = $this;
         $t->method = (count($_REQUEST) === 0) ? '' : $_SERVER['REQUEST_METHOD'];
-        $t->scheme = getval($_SERVER, 'REQUEST_SCHEME', '');
-        $t->basehost = $t->scheme.'://'.getval($_SERVER, 'HTTP_HOST', '');
-        $t->path = preg_replace("/\?.+$/",'',getval($_SERVER, 'REQUEST_URI', ''));
+        $t->scheme = getval($_SERVER['REQUEST_SCHEME'], '');
+        $t->basehost = $t->scheme.'://'.getval($_SERVER['HTTP_HOST'], '');
+        $t->path = preg_replace("/\?.+$/",'',getval($_SERVER['REQUEST_URI'], ''));
         $t->url = $t->basehost.$t->path;
         $t->root = $_SERVER['DOCUMENT_ROOT'];
         $t->pathlist = explode('/', $t->path);
         $t->php_path = str_replace($t->root,'',str_replace('\\','/',__FILE__));
         $t->php_dir = getdir($t->php_path);
-        $t->ref_url = getval($_SERVER, 'HTTP_REFERER', "");
+        $t->ref_url = getval($_SERVER['HTTP_REFERER'], "");
         $t->ref_domain = getdomain($t->ref_url);
         $t->ref_basehost = getbasehost($t->ref_url);
         $t->ref_dir = getdir($t->ref_url);
@@ -128,13 +128,11 @@ function sethead_type($opt = 1, $charset='utf-8') {
 }
 
 // 存在しない場合は標準の場合はnullを返す
-function getval($ary, string $key, $nullval = null) { return (isset($ary[$key])) ? $ary[$key] : $nullval; }
+function getval($val, $nullval = null) { return (is_null($val) ? $nullval : $val); }
 // /から始まる相対パスを変換、そして存在するパスじゃないとき空文字列で返す
 function get_docpath(string $path, $_blank = true) {
     if (strpos($path, "/") === 0) {
         $path = $_SERVER['DOCUMENT_ROOT'].$path;
-    } elseif(strpos($path, "//") === false) {
-        $path = __DIR__."/$path";
     }
     if ($path !== '' && file_exists($path)) {
         return $path;
@@ -157,7 +155,7 @@ function get_mdate($path) {
 // あとtxtファイルはtxtとして返される（直接変換する）
 // opt|4はElement要素の出力を同時に行うかどうか
 function set_linkdata($gpath, $tag=null, $opt = 3){
-    $bid = getval($tag, 'id');
+    $bid = getval($tag['id']);
     if($bid!=null){unset($tag['id']);}
     $btag = '';
     switch(gettype($tag)){
@@ -222,12 +220,18 @@ function jsrun($str, $onLoadDelete = false){
         .'</script>'."\n";
     echo($runstr);
 }
-// 最初の文字が[か{であるならば、JSON文字列
-// そうでなければパスとみなす
-function json_read($target_json, $assoc = false)
-{
+function delete_until_bracket($str){
+    return preg_replace("/^[^\[\{]*/", "", $str);
+}
+function delete_since_comment($str){
+    return preg_replace("/[\n][^\'\"\n]*[\/\/].*/", "", $str);
+}
+function delete_since_last_semicolon($str){
+    return preg_replace("/[\;\s]*$/", "", $str);
+}
+function json_read_one($target_json, $flag_force_json, $assoc = false){
     $jsonstr = '';
-    if (preg_match('/^[ \n]*[{\[]/', $target_json)) {
+    if ($flag_force_json) {
         $jsonstr = $target_json;
     } else {
         $target_json = get_docpath($target_json);
@@ -236,26 +240,83 @@ function json_read($target_json, $assoc = false)
             $jsonstr = mb_convert_encoding($jsonstr, 'UTF8', 'ASCII,JIS,UTF-8,EUC-JP,SJIS-WIN');
         }
     }
+    $jsonstr = delete_since_last_semicolon(delete_since_comment(delete_until_bracket($jsonstr)));
     if ($jsonstr !== '') {
         return json_decode($jsonstr, $assoc);
     } else {
         return [];
     }
 }
-function json_out($json, $pretty = false)
+// 最初の文字が[か{、改行が存在するならばJSON文字列、そうでなければパスとみなす
+// force_jsonが有効な場合、強制的にJSONとして読み込む
+// 最初のブラケットよりも前の文字列、ダブルクォーテーションよりも手前のコメントアウトは自動削除される
+// 配列が二階層の場合はプロパティモードで読み込む、jsonとして読み込まれるのは 0, json, value, hrefの優先度順
+function json_read($target, $assoc = false, $force_json = false)
 {
+    /*
+    $targetが文字列 → 単一の出力
+    $targetが配列 → マージする
+    マージする際に、デコードされたものが
+    配列の場合はそのまま一つにまとめる、オブジェクトの場合は別の親配列を生成する
+    */
+    $out = [];
+    $merge_enable = is_array($target);
+    // ループさせるために配列にいれる
+    if (!$merge_enable) $target = [$target];
+    foreach ($target as $value){
+        $property_mode = is_array($value);
+        // 自動的に取り出す
+        if ($property_mode){
+            if (isset($value[0])){
+                $use_json = $value[0]; unset($value[0]);
+            } elseif(isset($value["json"])){
+                $use_json = $value["json"]; unset($value["json"]);
+            } elseif(isset($value["value"])){
+                $use_json = $value["value"]; unset($value["value"]);
+            } elseif(isset($value["href"])){
+                $use_json = $value["href"]; unset($value["href"]);
+            } else {
+                $use_json = "";
+            }
+        }
+        else {
+            $use_json = $value;
+        }
+        $flag_force_json = $force_json || strpos($use_json, "\n") !== false || preg_match('/^[\s]*[{\[]/', $use_json);
+        $result = json_read_one($use_json, $flag_force_json);
+        if ($property_mode) {
+            $href = $flag_force_json ? "" : $use_json;
+            $result = array("href" => $href, "value" => $result);
+            $result = array_merge($value, $result);
+        }
+        if ($merge_enable){
+            if ($property_mode || !is_array($result)){
+                $result = [$result];
+            }
+            $out = array_merge($out, $result);
+        } else {
+            $out = $result;
+            break;
+        }
+    }
+    return $out;
+}
+function json_stringfy($json, $pretty = false)
+{
+    $write = "";
     try {
         switch (gettype($json)) {
-    case 'array':
-    $opt = JSON_UNESCAPED_UNICODE | (($pretty) ? JSON_PRETTY_PRINT : 0);
-
-    return json_encode($json, $opt);
-    case 'object': return;
-    default: return $json;
-    }
-    } catch (Exception $e) {
-        return '';
-    }
+        case 'array':
+        case 'object':
+            $opt = JSON_UNESCAPED_UNICODE | (($pretty) ? JSON_PRETTY_PRINT : 0);
+            $write = json_encode($json, $opt);
+            break;
+        default:
+            $write = $json;
+            break;
+        }
+    } catch (Exception $e) {}
+    return $write;
 }
 function connect($servise='sqlite',$host='test.db',$dbname='',$user='',$pass='',$charset='utf8'){
     switch(mb_strtolower($servise)){
@@ -534,5 +595,26 @@ function filter_exclusion($array, $filter_func = null){
 function filter_all($keyword = "", $page = 1, $max = 9) {
     global $gallery;
     return filter_page(filter_keyword(filter_exclusion($gallery), $keyword), $page, $max);
+}
+// 汎用日付フォーマットへ変換
+function datetostr_default($date = null){
+    $default = "Y-m-d\TH:i:s";
+    if (!is_numeric($date)) 
+        if (is_null($date))
+            return date($default);
+        else
+            $date = strtotime($date);
+    return date($default, $date);
+}
+// 日付だけの状態から日時絞り込み用の数を生成
+function date_since($date = null){
+    if (!is_numeric($date))
+        $date = strtotime(getval($date, "2000-01-01"));
+    return strtotime(date("Y-m-d", $date));
+}
+function date_until($date = null){
+    if (!is_numeric($date))
+        $date = strtotime(getval($date, datetostr_default()));
+    return strtotime(date("Y-m-d", $date)."+1 day -1 second");
 }
 ?>
