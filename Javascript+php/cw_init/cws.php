@@ -28,7 +28,7 @@ class server{
             echo("<html>\n<head>\n");
             echo('<meta http-equiv="Content-Type" content="text/html" charset="'.$charset.'"/>'."\n");
             if($opt&1){echo('<meta name="viewport" content="width=device-width,initial-scale=1">'."\n");}
-            $link = set_linkdata($this->php_dir."/server.js", null, 7);
+            $link = setlinkdata($this->php_dir."/server.js", null, 7);
             if($link!=null){
                 jsrun(
                     'cws.php_path = "'.$this->php_path.'";'
@@ -66,7 +66,7 @@ function getdir(string $url){
 function title($title_str){
     echo("<title>$title_str</title>\n");
 }
-function set_headfile(string $path_or_name = '', string $filename = '', $download = false) {
+function sethead_file(string $path_or_name = '', string $filename = '', $download = false) {
     $path_or_name = get_docpath($path_or_name);
     if ($path_or_name==='') {$download = '';}
     $name = '';
@@ -77,7 +77,7 @@ function set_headfile(string $path_or_name = '', string $filename = '', $downloa
             } else {
                 $download = 'inline';
                 if($filename===''){ $filename = basename($path_or_name); }
-                set_headtype(pathinfo($filename, PATHINFO_EXTENSION));
+                sethead_type(pathinfo($filename, PATHINFO_EXTENSION));
             }
             break;
         case 'object':
@@ -92,7 +92,7 @@ function set_headfile(string $path_or_name = '', string $filename = '', $downloa
     }
 }
 
-function set_headtype($opt = 1, $charset='utf-8') {
+function sethead_type($opt = 1, $charset='utf-8') {
     switch (mb_strtolower($opt)) {
     case '1': case 'text': case 'txt': case 'conf': case 'plane': case 'php': case 'cgi': case 'py':
         $headstr = 'text/plane; charset='.$charset; break;
@@ -128,18 +128,7 @@ function set_headtype($opt = 1, $charset='utf-8') {
 }
 
 // 存在しない場合は標準の場合はnullを返す
-function getval($val_or_array, $key_or_nullval = null, $nullval = null) {
-    if (is_array($val_or_array)){
-        if (isset($val_or_array[$key_or_nullval])){
-            return $nullval;
-        } else {
-            return @$val_or_array[$key_or_nullval];
-        }
-    }
-    else{
-        return (is_null($val_or_array) ? $key_or_nullval : $val_or_array);
-    }
-}
+function getval($val, $nullval = null) { return (is_null($val) ? $nullval : $val); }
 // /から始まる相対パスを変換、そして存在するパスじゃないとき空文字列で返す
 function get_docpath(string $path, $_blank = true) {
     if (strpos($path, "/") === 0) {
