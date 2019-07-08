@@ -130,10 +130,7 @@ function set_headtype($opt = 1, $charset='utf-8') {
 // 存在しない場合は標準の場合はnullを返す
 function getval($val_or_array, $key_or_nullval = null, $nullval = null) {
     if (is_array($val_or_array)){
-        if (isset($val_or_array[$key_or_nullval])){
-            return $nullval;
-        } else {
-            return @$val_or_array[$key_or_nullval];
+        return (empty($val_or_array[$key_or_nullval])) ? $nullval : @$val_or_array[$key_or_nullval];
         }
     }
     else{
