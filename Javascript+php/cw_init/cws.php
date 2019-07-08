@@ -131,7 +131,6 @@ function set_headtype($opt = 1, $charset='utf-8') {
 function getval($val_or_array, $key_or_nullval = null, $nullval = null) {
     if (is_array($val_or_array)){
         return (empty($val_or_array[$key_or_nullval])) ? $nullval : @$val_or_array[$key_or_nullval];
-        }
     }
     else{
         return (is_null($val_or_array) ? $key_or_nullval : $val_or_array);
