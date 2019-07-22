@@ -22,26 +22,13 @@ class server{
         $t->ref_dir = getdir($t->ref_url);
         $t->ht_head = false;
         $t->ht_body = false;
-    }
-    function head($opt = 0, string $charset='utf-8', $optarg=array()){
-        if (!($this->ht_head)) {
-            echo("<html>\n<head>\n");
-            echo('<meta http-equiv="Content-Type" content="text/html" charset="'.$charset.'"/>'."\n");
-            if($opt&1){echo('<meta name="viewport" content="width=device-width,initial-scale=1">'."\n");}
-            $link = set_linkdata($this->php_dir."/server.js", null, 7);
-            if($link!=null){
-                jsrun(
-                    'cws.php_path = "'.$this->php_path.'";'
-                );
-            };
-        }
-        $this->ht_head = true;
-    }
-    function body ($opt = 0) {
-        if (!($this->ht_body)) {
-            echo("</head>\n<body>\n");
-        }
-        $this->ht_body = true;
+        $t->prefix_l_list = array(
+            "K" => pow(1024, 1),
+            "M" => pow(1024, 2),
+            "G" => pow(1024, 3),
+            "T" => pow(1024, 4),
+            "P" => pow(1024, 5),
+        );
     }
 }
 $cws = new server();
@@ -65,6 +52,25 @@ function getdir(string $url){
 }
 function title($title_str){
     echo("<title>$title_str</title>\n");
+}
+function download($dir, $filename){
+    global $cws;
+    // memory check
+    $limit = mb_strtoupper(ini_get('memory_limit'));
+    preg_match("/(\d*)([A-Z])/", $limit, $m);
+    $limitsize = $m[1] * getval($cws->prefix_l_list[$m[2]], 1);
+    $filesize = filesize($dir.$filename);
+    if ($limitsize < $filesize * 2) {
+        return false;
+    }
+    $data = file_get_contents($dir.$filename);
+    if ($data !== false) {
+        set_headfile($dir, $filename);
+        echo($data);
+        return true;
+    } else {
+        return false;
+    }
 }
 function set_headfile(string $path_or_name = '', string $filename = '', $download = false) {
     $path_or_name = get_docpath($path_or_name);
@@ -91,7 +97,6 @@ function set_headfile(string $path_or_name = '', string $filename = '', $downloa
         if ($path_or_name !== '') {readfile($path_or_name);}
     }
 }
-
 function set_headtype($opt = 1, $charset='utf-8') {
     switch (mb_strtolower($opt)) {
     case '1': case 'text': case 'txt': case 'conf': case 'plane': case 'php': case 'cgi': case 'py':

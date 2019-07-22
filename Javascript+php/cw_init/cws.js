@@ -145,7 +145,7 @@ cws.get.date_until = function(date = new Date()){
 // URLの?以降を取得する関数、更に取得したものを定義する
 cws.get.query = function(href = location.href, auto_newDate = true) {
     let arg = new Object;
-    const spl = href.split('?')
+    const spl = href.split('?');
     if (spl.length === 1) return {};
     const qry = spl[spl.length - 1];
     const pair = qry.split('&');
@@ -618,9 +618,12 @@ cws.write.elem = function(element = "div", inline = "", insertobj = document, id
     }
 }
 // URLにクエリを書き出す、ページ移動はしない
-cws.write.query = function(query, date_format = cws.var.date_default){
-    var path = location.pathname;
+// do_overwriteは既存の値に書き出す
+cws.write.query = function(query, do_pushstate = true, do_overwrite = false,
+        href = location.href, date_format = cws.var.date_default){
+    var path = href.match(/([^\?]*)/)[1];
     if (typeof(query)==='undefined') query = {};
+    if (do_overwrite) query = cws.array.concat(cws.get.query(href), query);
     function query_equal(obj){
         return Object.keys(obj).map(function(value){
             var obj_value = obj[value];
@@ -647,7 +650,7 @@ cws.write.query = function(query, date_format = cws.var.date_default){
         .filter((value) => {return value !== null}).join('&');
     if (query_str != '') query_str = '?' + query_str;
     var state_url = path + query_str;
-    window.history.pushState(null, null, state_url);
+    if (do_pushstate) window.history.pushState(null, null, state_url);
     cws.var.querys = cws.get.query();
     return state_url;
 }
@@ -860,3 +863,6 @@ cws.storage.get = function(key) {
 function obj2array(obj){
     return Object.keys(obj).map(function (key) {return obj[key]});
 }
+
+// cws.phpと組み合わせて以下のように定義する
+// <script type="text/javascript" src="/common/init/cws.js?<?php echo(cws\get_mdate('/common/init/cws.js')); ?>"></script>
