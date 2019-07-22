@@ -155,9 +155,8 @@ cws.get.query = function(href = location.href, auto_newDate = true) {
         if (typeof(value) === 'string' && auto_newDate) {
             if (value === '') {}
             else if (value.match(cws.var.re.time)){
-                try{
-                    value = new Date(value);
-                } catch(e) {}
+                let newDate = new Date(value);
+                if (newDate.toString() !== "Invalid Date") value = newDate;
             } else if (!isNaN(value)){
                 value = Number(value);
             } else {
@@ -865,4 +864,4 @@ function obj2array(obj){
 }
 
 // cws.phpと組み合わせて以下のように定義する
-// <script type="text/javascript" src="/common/init/cws.js?<?php echo(cws\get_mdate('/common/init/cws.js')); ?>"></script>
+// <script type="text/javascript" src="/common/cw_init/cws.js?<?php echo(cws\get_mdate('/common/cw_init/cws.js')); ?>"></script>

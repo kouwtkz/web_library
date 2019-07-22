@@ -23,12 +23,11 @@ class server{
         $t->ht_head = false;
         $t->ht_body = false;
         $t->prefix_l_list = array(
-            "K" => pow(1024, 1),
-            "M" => pow(1024, 2),
-            "G" => pow(1024, 3),
-            "T" => pow(1024, 4),
-            "P" => pow(1024, 5),
+            "K" => 1, "M" => 2, "G" => 3, "T" => 4, "P" => 5
         );
+        $limit = mb_strtoupper(ini_get('memory_limit'));
+        preg_match("/(\d*)([A-Z])/", $limit, $m);
+        $t->limitsize = $m[1] * pow(1024, getval($t->prefix_l_list[$m[2]], 0));
     }
 }
 $cws = new server();
@@ -56,9 +55,7 @@ function title($title_str){
 function download($dir, $filename){
     global $cws;
     // memory check
-    $limit = mb_strtoupper(ini_get('memory_limit'));
-    preg_match("/(\d*)([A-Z])/", $limit, $m);
-    $limitsize = $m[1] * getval($cws->prefix_l_list[$m[2]], 1);
+    $limitsize = $cws->limitsize;
     $filesize = filesize($dir.$filename);
     if ($limitsize < $filesize * 2) {
         return false;
