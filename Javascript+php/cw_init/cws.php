@@ -1,4 +1,10 @@
 <?php
+/*
+// cws.phpと組み合わせて以下のように定義する (cws\はget_mdateなどの前に、ケースに応じて)
+namespace cws;
+require_once($_SERVER['DOCUMENT_ROOT']."/common/cw_init/cws.php");
+<script type="text/javascript" src="/common/cw_init/cws.js?<?php echo(get_mdate('/common/cw_init/cws.js')); ?>"></script>
+*/
 namespace cws;
 /* cws\debug(true); */
 function debug($flag = true) {

@@ -386,7 +386,54 @@ cws.to.fullWidth = function(strVal, other_replace = true){
         return fullVal;
     }
 }
-
+// PHPのstrtotimeの再現
+cws.to.strtotime = function(time = ''){
+    let second = 0, minute = 0, hour = 0;
+    let day = 0, week= 0, month = 0, year = 0;
+    let re, m;
+    re = /([\+\-]?[\d]+)\s*seconds?/; m = time.match(re);
+    if (m) {
+        time = time.replace(re, '');
+        second = Number(m[1]);
+    }
+    re = /([\+\-]?[\d]+)\s*minutes?/; m = time.match(re);
+    if (m) {
+        time = time.replace(re, '');
+        minute = Number(m[1]);
+    }
+    re = /([\+\-]?[\d]+)\s*hours?/; m = time.match(re);
+    if (m) {
+        time = time.replace(re, '');
+        hour = Number(m[1]);
+    }
+    re = /([\+\-]?[\d]+)\s*days?/; m = time.match(re);
+    if (m) {
+        time = time.replace(re, '');
+        day = Number(m[1]);
+    }
+    re = /([\+\-]?[\d]+)\s*weeks?/; m = time.match(re);
+    if (m) {
+        time = time.replace(re, '');
+        week = Number(m[1]);
+    }
+    re = /([\+\-]?[\d]+)\s*months?/; m = time.match(re);
+    if (m) {
+        time = time.replace(re, '');
+        month = Number(m[1]);
+    }
+    re = /([\+\-]?[\d]+)\s*years?/; m = time.match(re);
+    if (m) {
+        time = time.replace(re, '');
+        year = Number(m[1]);
+    }
+    time = new Date(time);
+    if (time.toString() === "Invalid Date") {
+        time = new Date();
+    }
+    time.setFullYear(time.getFullYear() + year, time.getMonth() + month, time.getDate() + day + 7 * week);
+    time.setHours(time.getHours() + hour, time.getMinutes() + minute, time.getSeconds() + second);
+    return time;
+}
 cws.get.parelm = function(elem, childuse = "URL"){
     const prt = elem.parentNode;
     if (prt === undefined || prt === null) { return elem; }
@@ -847,10 +894,15 @@ cws.post.open = function(VALorELEM = {}, url = null, target = "", formdata_obj =
 }
 
 cws.storage = {};
-cws.storage.out = function(key, value) {
+cws.storage.out = function(key, value = null) {
     const storage = sessionStorage;
     storage.removeItem(key);
-    storage.setItem(key, value);
+    if (value !== null) {
+        storage.setItem(key, value);
+    }
+}
+cws.storage.remove = function(key) {
+    cws.storage.out(key);
 }
 cws.storage.get = function(key) {
     const storage = sessionStorage;
@@ -859,9 +911,40 @@ cws.storage.get = function(key) {
     return getstr;
 }
 
+cws.cookie = {};
+cws.cookie.out = function(key, value = 0, time = '') {
+    let setDate = '';
+    if (value === null) {
+        value = 0;
+        setDate = ';max-age=0';
+    } else if (time === '' || time === null) {
+        setDate = ';max-age=999999999';
+    } else if (time.match(/^[\+\-]?[\d]+$/)) {
+        setDate = ';max-age=' + time;
+    } else {
+        setDate = ';expires=' + cws.to.strtotime(time).toGMTString();
+    }
+    document.cookie = key + '=' + value + setDate;
+    return document.cookie;
+}
+cws.cookie.remove = function(key) {
+    return cws.cookie.out(key, null);
+}
+cws.cookie.get = function(key = null) {
+    if (key === null) {
+        return document.cookie;
+    }
+    const cookie = ' ' + document.cookie + ';';
+    const re_key = new RegExp(' ' + key + '=([^;]+)');
+    var m = cookie.match(re_key);
+    if (m) {
+        return m[1];
+    } else {
+        return null;
+    }
+}
+
 function obj2array(obj){
     return Object.keys(obj).map(function (key) {return obj[key]});
 }
 
-// cws.phpと組み合わせて以下のように定義する
-// <script type="text/javascript" src="/common/cw_init/cws.js?<?php echo(cws\get_mdate('/common/cw_init/cws.js')); ?>"></script>
