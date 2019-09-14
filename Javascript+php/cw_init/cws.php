@@ -144,16 +144,37 @@ function getval($val_or_array, $key_or_nullval = null, $nullval = null) {
         return (is_null($val_or_array) ? $key_or_nullval : $val_or_array);
     }
 }
-// /から始まる相対パスを変換、そして存在するパスじゃないとき空文字列で返す
-function get_docpath(string $path, $_blank = true) {
-    if (strpos($path, "/") === 0) {
+// パスの存在チェック、存在しないときは空かパス名のいずれかを返す
+function get_path(string $path, bool $return_blank = true) {
+    $docpath = get_docpath($path, true);
+    if ($docpath !== '') {
+        return $path;
+    } else {
+        return $return_blank ? '' : $path;
+    }
+}
+// /から始まる相対パスを変換、存在しないときは空かパス名のいずれかを返す
+function get_docpath(string $path, bool $return_blank = true) {
+    if (strpos($path, '/') === 0) {
         $path = $_SERVER['DOCUMENT_ROOT'].$path;
     }
     if ($path !== '' && file_exists($path)) {
         return $path;
     } else {
-        return $path ? '' : $path;
+        return $return_blank ? '' : $path;
     }
+}
+// ファイル名の両端の名前のファイルが存在するかチェックする
+
+function get_eachpath(string $path, string $dir = '', string $head = '',
+    string $foot = '', string $ext = '', bool $return_blank = true){
+    $path = ($path) ? $dir.$path : $path;
+    $info = pathinfo($path);
+    $eachpath = (isset($info['dirname']) ? ($info['dirname']).'/':'')
+    .(isset($info['filename']) ? $head.$info['filename'].$foot : '')
+        .($ext ? '.'.$ext : (isset($info['extension']) ? ('.'.$info['extension']) : ''));
+    $check = get_path($eachpath);
+    return $check ? $eachpath : ($return_blank ? '' : $path);
 }
 // 更新日のクエリだけ返す
 function get_mdate($path) {
@@ -244,7 +265,7 @@ function delete_since_comment($str){
 function delete_since_last_semicolon($str){
     return preg_replace("/[\;\s]*$/", "", $str);
 }
-function json_read_one($target_json, $flag_force_json, $assoc = false){
+function json_read_one($target_json, $assoc = false, $flag_force_json = false){
     $jsonstr = '';
     if ($flag_force_json) {
         $jsonstr = $target_json;
@@ -263,6 +284,7 @@ function json_read_one($target_json, $flag_force_json, $assoc = false){
     }
 }
 // 最初の文字が[か{、改行が存在するならばJSON文字列、そうでなければパスとみなす
+// assocはtrueならばArray、falseならばstdClassとして取り出す
 // force_jsonが有効な場合、強制的にJSONとして読み込む
 // 最初のブラケットよりも前の文字列、ダブルクォーテーションよりも手前のコメントアウトは自動削除される
 // 配列が二階層の場合はプロパティモードで読み込む、jsonとして読み込まれるのは 0, json, value, hrefの優先度順
@@ -298,7 +320,7 @@ function json_read($target, $assoc = false, $force_json = false)
             $use_json = $value;
         }
         $flag_force_json = $force_json || strpos($use_json, "\n") !== false || preg_match('/^[\s]*[{\[]/', $use_json);
-        $result = json_read_one($use_json, $flag_force_json);
+        $result = json_read_one($use_json, $assoc, $flag_force_json);
         if ($property_mode) {
             $href = $flag_force_json ? "" : $use_json;
             $result = array("href" => $href, "value" => $result);
@@ -607,9 +629,8 @@ function filter_exclusion($array, $filter_func = null){
     return array_filter($array, $filter_func);
 }
 // 上記のデフォルト設定時の検索
-function filter_all($keyword = "", $page = 1, $max = 9) {
-    global $gallery;
-    return filter_page(filter_keyword(filter_exclusion($gallery), $keyword), $page, $max);
+function filter_all($array ,$keyword = "", $page = 1, $max = 9) {
+    return filter_page(filter_keyword(filter_exclusion($array), $keyword), $page, $max);
 }
 // 汎用日付フォーマットへ変換
 function datetostr_default($date = null){

@@ -1,0 +1,9 @@
+html.wf-loading {
+    visibility: hidden;
+    opacity: 0;
+}
+html.wf-active, html.loading-delay {
+    transition: .3s cubic-bezier(0.5, 0.1, 0.2, 1);
+    visibility: visible;
+    opacity: 1;
+}
