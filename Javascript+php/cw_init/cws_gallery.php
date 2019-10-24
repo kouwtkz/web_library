@@ -1,6 +1,6 @@
 <?php
 namespace cws;
-require_once($_SERVER['DOCUMENT_ROOT']."/common/cw_init/cws.php");
+require_once("cws.php");
 // 画像URLのsrcとthumbnailの割り振り関数
 function filter_thumbnail($array, $thumb_suffix = "_tmb"){
     $dir = '';

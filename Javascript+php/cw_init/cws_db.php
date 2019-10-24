@@ -4,21 +4,21 @@
 namespace cws;
 /*
     # 以下がデータベース接続するための設定となる
-    cws\Cwdb::$db_servise = 'mysql';
-	cws\Cwdb::$db_name = '';
-	cws\Cwdb::$db_user = '';
-	cws\Cwdb::$db_pass = '';
-    cws\Cwdb::$db_host = '';
+    cws\DB::$db_servise = 'mysql';
+	cws\DB::$db_name = '';
+	cws\DB::$db_user = '';
+	cws\DB::$db_pass = '';
+    cws\DB::$db_host = '';
 */
-if (isset($preg_ignore_ip)) { Cwdb::$preg_ignore_ip = $preg_ignore_ip; }
-if (isset($access_reboot)) { Cwdb::$access_reboot = $access_reboot; }
-if (isset($cookie_reboot)) { Cwdb::$cookie_reboot = $cookie_reboot; }
-if (isset($flag_session)) { Cwdb::$flag_session = (bool)$flag_session; }
-if (isset($flag_log)) { Cwdb::$flag_log = (bool)$flag_log; }
+require_once("cws_cookie.php");
+if (isset($preg_ignore_ip)) { DB::$preg_ignore_ip = $preg_ignore_ip; }
+if (isset($access_reboot)) { DB::$access_reboot = $access_reboot; }
+if (isset($cookie_reboot)) { DB::$cookie_reboot = $cookie_reboot; }
+if (isset($flag_session)) { DB::$flag_session = (bool)$flag_session; }
+if (isset($flag_log)) { DB::$flag_log = (bool)$flag_log; }
 
-class Cwdb{
+class DB{
     private $access_id = "";   # セッションID_時刻の35進数をアクセスID
-    public static $access_cookie_date = "+30 day";  # cookie標準の保存日付
     public static $access_reboot = false;   # ログを再びとるかどうか
     public static $cookie_reboot = false;   # クッキーをリセットするかどうか
     public static $ignore_access_cookie = "ignore_access_log_checked"; # 無視するクッキーの要素
@@ -113,35 +113,6 @@ class Cwdb{
         $param = preg_replace("/(\'|\\\\)/","$1$1",$param);
         return $param;
     }
-    static function set_cookie($name, $value = "1", $time = null, $dir = "/"){
-        if (ctype_digit($time) && $time <= 0) {
-            $time = time() - 42000;
-            unset($_COOKIE[$name]);
-        } else {
-            if (is_null($time)) {
-                $time = strtotime(self::$access_cookie_date);
-            } elseif ($time === "today") {  # 今日までの日付でクッキーを設置
-                $time = strtotime(date("y-m-d",strtotime("+1 day"))) - 1;
-            } elseif (preg_match("/([\+\-]?\d*)\s*(\w*)/" , $time, $m)){
-                $sub = sprintf("%+d", ((int)$m[1] + 1));
-                # 正規表現で +1 day といった型を補足してn日後の処理を行う
-                # uyearとumonthとudayで今年まで、今月まで、今日まで、という処理を行う
-                if (preg_match("/year|month|day/", $m[2])) {
-                    $time = strtotime(date("y-m-d",strtotime($time))) - 1;
-                } elseif (preg_match("/uyear/", $m[2])) {
-                    $time = strtotime(date("y",strtotime("$sub year"))) - 1;
-                } elseif (preg_match("/umonth/", $m[2])) {
-                    $time = strtotime(date("y-m",strtotime("$sub month"))) - 1;
-                } elseif (preg_match("/uday/", $m[2])) {
-                    $time = strtotime(date("y-m-d",strtotime("$sub day"))) - 1;
-                } else {
-                    $time = strtotime($time) - 1;
-                }
-            }
-            $_COOKIE[$name] = $value;
-        }
-        setcookie($name, (string)$value, $time, $dir);
-    }
     # STATICを一時的にローカルなものにする
     private function static_local_begin(){
         $this->temp_servise = self::$db_servise;
@@ -173,7 +144,7 @@ class Cwdb{
                 }
                 if (self::$access_reboot) { unset($_SESSION[$this->access_id]); }
                 if (self::$cookie_reboot) {
-                    self::set_cookie(self::$ignore_access_cookie, '', 0, "/");
+                    Cookie::set(self::$ignore_access_cookie, '', 0, "/");
                 }
                 if (!isset($_COOKIE[self::$ignore_access_cookie])) {
                     if (isset($_SESSION["access_id"])) {
@@ -205,12 +176,12 @@ class Cwdb{
                              VALUES ('$addr', '$user_agent', '$access_id','$dcrt','$scnm')";
                             $this->execute($sql);
                         } else {
-                            self::set_cookie(self::$ignore_access_cookie, 1, "+3 year");
+                            Cookie::set(self::$ignore_access_cookie, 1, "+3 year");
                         }
                     }
                     $_SESSION[$this->access_id] = $access_id;
                     if (!isset($_COOKIE["access_id"])) {
-                        self::set_cookie("access_id", $access_id, "today");
+                        Cookie::set("access_id", $access_id, "today");
                     }
                 }
                 $this->static_local_end();
