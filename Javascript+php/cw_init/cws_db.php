@@ -27,7 +27,7 @@ class DB{
     public static $table_log = "access_log";    # ログを残すときのテーブル名
     private $use_table_log = "";        # 上で設定したテーブルの確定名
     public static $flag_session = true; # セッションを使用するかどうかのフラグ
-    public static $flag_log = true;     # アクセスログを残すかのフラグ
+    public static $flag_log = false;    # アクセスログを残すかのフラグ
     public static $err_msg = "";        # エラーメッセージ入れるとこ
     public static $exp_err = true;      # SQL実行時にもエラーの代わりに例外を投げるように設定
     public static $fth_asc = true;      # デフォルトのフェッチモードを連想配列形式に設定 
