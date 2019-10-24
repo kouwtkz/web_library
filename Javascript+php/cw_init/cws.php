@@ -352,34 +352,9 @@ function json_stringfy($json, $pretty = false)
             $write = $json;
             break;
         }
-    } catch (Exception $e) {}
+    } catch (\Exception $e) {}
     return $write;
 }
-function connect($servise='sqlite',$host='test.db',$dbname='',$user='',$pass='',$charset='utf8'){
-    switch(mb_strtolower($servise)){
-    case 'sqlite': case '0':
-        $cnct = 'sqlite:'.get_docpath($host);
-        break;
-    case 'mysql': case '1':
-        $cnct = 'mysql:host='.$host.';dbname='.$dbname.';charset='.$charset;
-        break;
-    default: $cnct = null;
-    }
-
-    if ($cnct!==null) {
-        try{
-            $pdo = new \PDO($cnct, $user, $pass);
-            $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-            $pdo->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
-        } catch(Exception $e) {
-            $pdo = null;
-        }
-    } else {
-        $pdo = null;
-    }
-    return $pdo;
-}
-
 class hook_class {
     function __construct($value = '', $mode = '', $mode_not = false, $mode_tag = false, $regex = false){
         $this->value = $value;
