@@ -5,23 +5,30 @@ namespace cws;
 /*
     # 以下がデータベース接続するための設定となる
     cws\DB::$db_servise = 'mysql';
+    cws\DB::$db_host = '';
 	cws\DB::$db_name = '';
 	cws\DB::$db_user = '';
 	cws\DB::$db_pass = '';
-    cws\DB::$db_host = '';
 */
 require_once("cws_cookie.php");
-if (isset($preg_ignore_ip)) { DB::$preg_ignore_ip = $preg_ignore_ip; }
-if (isset($access_reboot)) { DB::$access_reboot = $access_reboot; }
-if (isset($cookie_reboot)) { DB::$cookie_reboot = $cookie_reboot; }
-if (isset($flag_session)) { DB::$flag_session = (bool)$flag_session; }
-if (isset($flag_log)) { DB::$flag_log = (bool)$flag_log; }
+if (isset($cws_db_servise)) { DB::$db_host = $cws_db_servise; }
+if (isset($cws_db_host)) { DB::$db_host = $cws_db_host; }
+if (isset($cws_db_name)) { DB::$db_name = $cws_db_name; }
+if (isset($cws_db_user)) { DB::$db_user = $cws_db_user; }
+if (isset($cws_db_pass)) { DB::$db_user = $cws_db_pass; }
+if (isset($cws_table_log)) { DB::$table_log = $cws_table_log; }
+if (isset($cws_flag_log)) { DB::$flag_log = $cws_flag_log; }
+if (isset($cws_err_dump)) { DB::$err_dump = $cws_err_dump; }
+if (isset($cws_preg_ignore_ip)) { DB::$preg_ignore_ip = $cws_preg_ignore_ip; }
+if (isset($cws_access_reboot)) { DB::$access_reboot = $cws_access_reboot; }
+if (isset($cws_cookie_reboot)) { DB::$cookie_reboot = $cws_cookie_reboot; }
 
 class DB{
     private $access_id = "";   # セッションID_時刻の35進数をアクセスID
     public static $access_reboot = false;   # ログを再びとるかどうか
     public static $cookie_reboot = false;   # クッキーをリセットするかどうか
     public static $ignore_access_cookie = "ignore_access_log_checked"; # 無視するクッキーの要素
+    public static $access_id_cookie = "access_id";  # アクセスIDのクッキー名
     public static $preg_ignore_ip = "/ip/";     # ログ残す際に無視するipアドレス、正規表現
     public $pdo = null;                         # PDOのコネクトオブジェクト
     public static $table_log = "access_log";    # ログを残すときのテーブル名
@@ -147,10 +154,10 @@ class DB{
                     Cookie::set(self::$ignore_access_cookie, '', 0, "/");
                 }
                 if (!isset($_COOKIE[self::$ignore_access_cookie])) {
-                    if (isset($_SESSION["access_id"])) {
-                        $access_id =  $_SESSION["access_id"];
-                    } elseif (isset($_COOKIE["access_id"])) {
-                        $access_id = $_COOKIE["access_id"];
+                    if (isset($_SESSION[self::$access_id_cookie])) {
+                        $access_id =  $_SESSION[self::$access_id_cookie];
+                    } elseif (isset($_COOKIE[self::$access_id_cookie])) {
+                        $access_id = $_COOKIE[self::$access_id_cookie];
                     } else {
                         $access_id = '';
                     }
@@ -180,8 +187,8 @@ class DB{
                         }
                     }
                     $_SESSION[$this->access_id] = $access_id;
-                    if (!isset($_COOKIE["access_id"])) {
-                        Cookie::set("access_id", $access_id, "today");
+                    if (!isset($_COOKIE[self::$access_id_cookie])) {
+                        Cookie::set(self::$access_id_cookie, $access_id, "today");
                     }
                 }
                 $this->static_local_end();
