@@ -1,7 +1,7 @@
 <?php
+namespace cws;
 # アクセスログも含めて簡単にデータベースに接続できるようにするためのクラス
 # cldbから流用、mysqliからPDOベースに書き換えた
-namespace cws;
 /*
     # 以下がデータベース接続するための設定となる
     cws\DB::$db_servise = 'mysql';
@@ -11,17 +11,6 @@ namespace cws;
 	cws\DB::$db_pass = '';
 */
 require_once("cws_cookie.php");
-if (isset($cws_db_servise)) { DB::$db_host = $cws_db_servise; }
-if (isset($cws_db_host)) { DB::$db_host = $cws_db_host; }
-if (isset($cws_db_name)) { DB::$db_name = $cws_db_name; }
-if (isset($cws_db_user)) { DB::$db_user = $cws_db_user; }
-if (isset($cws_db_pass)) { DB::$db_user = $cws_db_pass; }
-if (isset($cws_table_log)) { DB::$table_log = $cws_table_log; }
-if (isset($cws_flag_log)) { DB::$flag_log = $cws_flag_log; }
-if (isset($cws_err_dump)) { DB::$err_dump = $cws_err_dump; }
-if (isset($cws_preg_ignore_ip)) { DB::$preg_ignore_ip = $cws_preg_ignore_ip; }
-if (isset($cws_access_reboot)) { DB::$access_reboot = $cws_access_reboot; }
-if (isset($cws_cookie_reboot)) { DB::$cookie_reboot = $cws_cookie_reboot; }
 
 class DB{
     private $access_id = "";   # セッションID_時刻の35進数をアクセスID
@@ -383,6 +372,31 @@ class DB{
                 $txt = 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP';
         }
         return $txt;
-    }    
+    }
+    static function set_value_after(&$to_value, &$from_value, $after = null, $after_ins = true){
+        $to_value = $from_value;
+        if ($after_ins) $from_value= $after_ins;
+        return $to_value;
+    }
+    static function global_init(){
+        global $cws_db_servise, $cws_db_host, $cws_db_name, $cws_db_user, $cws_db_pass;
+        global $cws_table_log, $cws_flag_log, $cws_err_dump, $cws_preg_ignore_ip;
+        global $cws_access_reboot, $cws_cookie_reboot;
+        if (isset($cws_db_servise)) { self::set_value_after(self::$db_host, $cws_db_servise, null); }
+        if (isset($cws_db_host)) { self::set_value_after(self::$db_host, $cws_db_host, null); }
+        if (isset($cws_db_name)) { self::set_value_after(self::$db_name, $cws_db_name, null); }
+        if (isset($cws_db_user)) { self::set_value_after(self::$db_user, $cws_db_user, null); }
+        if (isset($cws_db_pass)) { self::set_value_after(self::$db_user, $cws_db_pass, null); }
+        if (isset($cws_table_log)) { self::set_value_after(self::$table_log, $cws_table_log, null); }
+        if (isset($cws_flag_log)) { self::set_value_after(self::$flag_log, $cws_flag_log, null); }
+        if (isset($cws_err_dump)) { self::set_value_after(self::$err_dump, $cws_err_dump, null); }
+        if (isset($cws_preg_ignore_ip)) { self::set_value_after(self::$preg_ignore_ip, $cws_preg_ignore_ip, null); }
+        if (isset($cws_access_reboot)) { self::set_value_after(self::$access_reboot, $cws_access_reboot, null); }
+        if (isset($cws_cookie_reboot)) { self::set_value_after(self::$cookie_reboot, $cws_cookie_reboot, null); }
+    }
+    static function create($global_enable = true){
+        if ($global_enable) self::global_init();
+        return new self();
+    }
 }
 ?>
