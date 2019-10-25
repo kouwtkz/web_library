@@ -12,6 +12,63 @@ namespace cws;
 */
 require_once("cws_cookie.php");
 
+// データベースに接続するための情報
+class DBI{
+    public $access_reboot = false;   # ログを再びとるかどうか
+    public $cookie_reboot = false;   # クッキーをリセットするかどうか
+    public $ignore_access_cookie = "ignore_access_log_checked"; # 無視するクッキーの要素
+    public $access_id_cookie = "access_id";  # アクセスIDのクッキー名
+    public $preg_ignore_ip = "/ip/";     # ログ残す際に無視するipアドレス、正規表現
+    public $table_log = "access_log";    # ログを残すときのテーブル名
+    public $flag_session = true; # セッションを使用するかどうかのフラグ
+    public $flag_log = false;    # アクセスログを残すかのフラグ
+    public $err_msg = "";        # エラーメッセージ入れるとこ
+    public $exp_err = true;      # SQL実行時にもエラーの代わりに例外を投げるように設定
+    public $fth_asc = true;      # デフォルトのフェッチモードを連想配列形式に設定 
+    public $err_dump = false;    # エラー時に出力するかどうか
+    public $db_host = "log.db"; # データベースのホスト、ファイル名かリンクかIPアドレス
+    public $db_user = "";    # ログインするユーザー名
+    public $db_pass = "";    # ログインするときのパスワード
+    public $db_name = "";    # 使うデータベースの名前
+    public $db_servise = 'sqlite';   # 使用するデータベース、標準でsqliteにした
+    public $db_charset = "utf8mb4";  # 扱うときの文字型です
+    public $db_collate = "";    # 照合順序(とりあえず)
+    public $pdo = null;         # PDOのコネクトオブジェクト
+    static function set_value_after(&$to_value, &$from_value, $after = null, $after_ins = true){
+        $to_value = $from_value;
+        if ($after_ins) $from_value= $after_ins;
+        return $to_value;
+    }
+    function global_init(){
+        global $cws_db_servise, $cws_db_host, $cws_db_name, $cws_db_user, $cws_db_pass;
+        global $cws_table_log, $cws_flag_log, $cws_err_dump, $cws_preg_ignore_ip;
+        global $cws_access_reboot, $cws_cookie_reboot;
+        if (isset($cws_db_servise)) { self::set_value_after($this->db_host, $cws_db_servise, null); }
+        if (isset($cws_db_host)) { self::set_value_after($this->db_host, $cws_db_host, null); }
+        if (isset($cws_db_name)) { self::set_value_after($this->db_name, $cws_db_name, null); }
+        if (isset($cws_db_user)) { self::set_value_after($this->db_user, $cws_db_user, null); }
+        if (isset($cws_db_pass)) { self::set_value_after($this->db_user, $cws_db_pass, null); }
+        if (isset($cws_table_log)) { self::set_value_after($this->table_log, $cws_table_log, null); }
+        if (isset($cws_flag_log)) { self::set_value_after($this->flag_log, $cws_flag_log, null); }
+        if (isset($cws_err_dump)) { self::set_value_after($this->err_dump, $cws_err_dump, null); }
+        if (isset($cws_preg_ignore_ip)) { self::set_value_after($this->preg_ignore_ip, $cws_preg_ignore_ip, null); }
+        if (isset($cws_access_reboot)) { self::set_value_after($this->access_reboot, $cws_access_reboot, null); }
+        if (isset($cws_cookie_reboot)) { self::set_value_after($this->cookie_reboot, $cws_cookie_reboot, null); }
+    }
+    static function create($global_enable = true){
+        return new self($global_enable);
+    }
+    function __construct($global_enable = true){
+        if ($global_enable) $this->global_init();
+    }
+    function __destruct() {
+        $this->pdo = null;
+    }
+    function __clone() {
+        $this->pdo = null;
+    }
+}
+
 class DB{
     private $access_id = "";   # セッションID_時刻の35進数をアクセスID
     public static $access_reboot = false;   # ログを再びとるかどうか
@@ -19,7 +76,6 @@ class DB{
     public static $ignore_access_cookie = "ignore_access_log_checked"; # 無視するクッキーの要素
     public static $access_id_cookie = "access_id";  # アクセスIDのクッキー名
     public static $preg_ignore_ip = "/ip/";     # ログ残す際に無視するipアドレス、正規表現
-    public $pdo = null;                         # PDOのコネクトオブジェクト
     public static $table_log = "access_log";    # ログを残すときのテーブル名
     private $use_table_log = "";        # 上で設定したテーブルの確定名
     public static $flag_session = true; # セッションを使用するかどうかのフラグ
@@ -37,45 +93,19 @@ class DB{
     private $temp_servise = "";     # STATICなデータベースから一時保存する
     public static $db_charset = "utf8mb4";  # 扱うときの文字型です
     public static $db_collate = ""; # 照合順序(とりあえず)
-    static function connect_static(){
-        $servise = self::$db_servise;
-        $host = self::$db_host;
-        $dbname = self::$db_name;
-        $user=self::$db_user;
-        $pass = self::$db_pass;
-        $charset = self::$db_charset;
-        switch(mb_strtolower($servise)){
-            case 'sqlite': case '0':
-                $cnct = 'sqlite:'.$host;
-                break;
-            case 'mysql': case '1':
-                $cnct = 'mysql:host='.$host.';dbname='.$dbname.';charset='.$charset;
-                break;
-            default: $cnct = null;
-        }
-    
-        if ($cnct!==null) {
-            try{
-                $pdo = new \PDO($cnct, $user, $pass);
-                if (self::$exp_err) { $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION); }
-                if (self::$fth_asc) { $pdo->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC); }
-            } catch(\Exception $e) {
-                $pdo = null;
-            }
-        } else {
-            $pdo = null;
-        }
-        return $pdo;
-    }
+    public $dbi = null;             # データベースの情報
+    public $pdo = null;             # PDOのコネクトオブジェクト
     function execute($sql) {
-        $dbh = $this->pdo;
-        try{                
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
+        $dbh = $dbi->pdo;
+        try{
             $sth = $dbh->prepare($sql);
             $sth->execute();
-            self::$err_msg = '';
+            $dbi->err_msg = '';
         } catch(\Exception $e) {
-            self::$err_msg = join('; ', $e->errorInfo);
-            if (self::$err_dump) { \var_dump($sql . "\n" . self::$err_msg); };
+            $dbi->err_msg = join('; ', $e->errorInfo);
+            if ($dbi->err_dump) { \var_dump($sql . "\n" . $dbi->err_msg); };
             $sth = null;
         }
         return $sth;
@@ -94,36 +124,59 @@ class DB{
         $result = $this->execute($sql);
         return (bool)$result;
     }
-    function connect() {
-        $this->pdo = self::connect_static();
-        $this->cr_servise = self::$db_servise;
-        $this->temp_servise = $this->cr_servise;
-        return $this->pdo;
+    function connect($dbi = null) {
+        if (is_null($dbi))
+            $dbi = $this->dbi;
+        else
+            $this->dbi = $dbi;
+        $servise = $dbi->db_servise;
+        $host = $dbi->db_host;
+        $dbname = $dbi->db_name;
+        $user=$dbi->db_user;
+        $pass = $dbi->db_pass;
+        $charset = $dbi->db_charset;
+        switch(mb_strtolower($servise)){
+            case 'sqlite': case '0':
+                $cnct = 'sqlite:'.$host;
+                break;
+            case 'mysql': case '1':
+                $cnct = 'mysql:host='.$host.';dbname='.$dbname.';charset='.$charset;
+                break;
+            default: $cnct = null;
+        }
+    
+        if ($cnct!==null) {
+            try{
+                $pdo = new \PDO($cnct, $user, $pass);
+                if ($dbi->exp_err) { $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION); }
+                if ($dbi->fth_asc) { $pdo->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC); }
+            } catch(\Exception $e) {
+                $pdo = null;
+            }
+        } else {
+            $pdo = null;
+        }
+        $dbi->pdo = $pdo;
+        $this->pdo = $pdo;
+        return $pdo;
     }
     function disconnect() {
+        $dbi = $this->dbi;
+        $dbi->pdo = null;
         $this->pdo = null;
-        $this->cr_servise = '';
         return $this->pdo;
     }
     static function escape($param){
         $param = preg_replace("/(\'|\\\\)/","$1$1",$param);
         return $param;
     }
-    # STATICを一時的にローカルなものにする
-    private function static_local_begin(){
-        $this->temp_servise = self::$db_servise;
-        self::$db_servise = $this->cr_servise;
-    }
-    private function static_local_end(){
-        self::$db_servise = $this->temp_servise;
-        $this->temp_servise = $this->cr_servise;
-    }
     function session_begin(){
-        if (self::$flag_session) {
+        $dbi = $this->dbi;
+        $pdo = $dbi->pdo;
+        if ($dbi->flag_session) {
             if (!isset($_SESSION)) { session_start(); }
-            if (!is_null($this->pdo) && self::$flag_log) {
-                $this->static_local_begin();
-                $this->use_table_log = self::$table_log;
+            if (!is_null($pdo) && $dbi->flag_log) {
+                $this->use_table_log = $dbi->table_log;
                 $table = $this->use_table_log;
                 if (!$this->exists($table)) {
                     $sql = "CREATE TABLE `$table` (
@@ -138,24 +191,24 @@ class DB{
                         )";
                     $this->execute($sql);
                 }
-                if (self::$access_reboot) { unset($_SESSION[$this->access_id]); }
-                if (self::$cookie_reboot) {
-                    Cookie::set(self::$ignore_access_cookie, '', 0, "/");
+                if ($dbi->access_reboot) { unset($_SESSION[$this->access_id]); }
+                if ($dbi->cookie_reboot) {
+                    Cookie::set($dbi->ignore_access_cookie, '', 0, "/");
                 }
-                if (!isset($_COOKIE[self::$ignore_access_cookie])) {
-                    if (isset($_SESSION[self::$access_id_cookie])) {
-                        $access_id =  $_SESSION[self::$access_id_cookie];
-                    } elseif (isset($_COOKIE[self::$access_id_cookie])) {
-                        $access_id = $_COOKIE[self::$access_id_cookie];
+                if (!isset($_COOKIE[$dbi->ignore_access_cookie])) {
+                    if (isset($_SESSION[$dbi->access_id_cookie])) {
+                        $access_id =  $_SESSION[$dbi->access_id_cookie];
+                    } elseif (isset($_COOKIE[$dbi->access_id_cookie])) {
+                        $access_id = $_COOKIE[$dbi->access_id_cookie];
                     } else {
                         $access_id = '';
                     }
                     if ($access_id == '') {
                         $access_id =  session_id()."_".base_convert(time(), 10, 36);
                     }
-                    $this->access_id = $access_id;
+                    $dbi->access_id = $access_id;
                     $scnm = $_SERVER["SCRIPT_NAME"];
-                    $sql = "SELECT count(*) FROM `access_log` WHERE 
+                    $sql = "SELECT count(*) FROM `" . $dbi->table_log . "` WHERE 
                      `access_id` = '$access_id' AND
                      `script_name` = '$scnm'";
                     $stmt = $this->execute($sql);
@@ -166,36 +219,31 @@ class DB{
                     if ($row === 0){
                         $addr = $_SERVER["REMOTE_ADDR"];
                         $dcrt = $_SERVER["DOCUMENT_ROOT"];
-                        if (!preg_match(self::$preg_ignore_ip, $addr)) {
+                        if (!preg_match($dbi->preg_ignore_ip, $addr)) {
                             $user_agent = $_SERVER["HTTP_USER_AGENT"];
                             $sql = "INSERT INTO `$table` (`ip_address`,`user_agent`,`access_id`,`document_root`,`script_name`)
                              VALUES ('$addr', '$user_agent', '$access_id','$dcrt','$scnm')";
                             $this->execute($sql);
                         } else {
-                            Cookie::set(self::$ignore_access_cookie, 1, "+3 year");
+                            Cookie::set($dbi->ignore_access_cookie, 1, "+3 year");
                         }
                     }
-                    $_SESSION[$this->access_id] = $access_id;
-                    if (!isset($_COOKIE[self::$access_id_cookie])) {
-                        Cookie::set(self::$access_id_cookie, $access_id, "today");
+                    $stmt = null;
+                    $_SESSION[$dbi->access_id] = $access_id;
+                    if (!isset($_COOKIE[$dbi->access_id_cookie])) {
+                        Cookie::set($dbi->access_id_cookie, $access_id, "today");
                     }
                 }
-                $this->static_local_end();
             }
         }
     }
-    function session_connect(){
-        $this->connect();
+    function session_connect($dbi = null){
+        $this->connect($dbi);
         $this->session_begin();
     }
-    function __construct(){
-        $this->session_connect();
-    }
-    function __destruct() {
-        $this->disconnect();
-    }
-    static function set_inc($primary = true){
-        $servise = self::$db_servise;
+    function set_inc($primary = true){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = 'INTEGER ';
@@ -212,8 +260,9 @@ class DB{
         }
         return $txt;
     }
-    static function set_inc_foot($index_name = 'ID'){
-        $servise = self::$db_servise;
+    function set_inc_foot($index_name = 'ID'){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = '';
@@ -226,8 +275,9 @@ class DB{
         }
         return $txt;
     }
-    static function set_bit($bits = 1){
-        $servise = self::$db_servise;
+    function set_bit($bits = 1){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = 'INTEGER';
@@ -244,8 +294,9 @@ class DB{
         }
         return $txt;
     }
-    static function set_int($int_size = 4){
-        $servise = self::$db_servise;
+    function set_int($int_size = 4){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = 'INTEGER';
@@ -268,8 +319,9 @@ class DB{
         }
         return $txt;
     }
-    static function set_real($float_size = 8){
-        $servise = self::$db_servise;
+    function set_real($float_size = 8){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = 'REAL';
@@ -286,8 +338,9 @@ class DB{
         }
         return $txt;
     }
-    static function set_numeric($int_size = 4){
-        $servise = self::$db_servise;
+    function set_numeric($int_size = 4){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
             case 'mysql': case '1':
@@ -296,8 +349,9 @@ class DB{
         }
         return $txt;
     }
-    static function set_text($len = -2){
-        $servise = self::$db_servise;
+    function set_text($len = -2){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = 'TEXT';
@@ -316,8 +370,9 @@ class DB{
         }
         return $txt;
     }
-    static function set_brob($len = -2){
-        $servise = self::$db_servise;
+    function set_brob($len = -2){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = 'NONE';
@@ -340,8 +395,9 @@ class DB{
         }
         return $txt;
     }
-    static function set_time($dateonly = false, $notnull = true){
-        $servise = self::$db_servise;
+    function set_time($dateonly = false, $notnull = true){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = 'TEXT';
@@ -359,8 +415,9 @@ class DB{
         if ($notnull) { $txt .= ' NOT NULL'; }
         return $txt;
     }
-    static function set_timestamp(){
-        $servise = self::$db_servise;
+    function set_timestamp(){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = "TEXT NOT NULL DEFAULT (DATETIME('now', 'localtime'))";
@@ -373,30 +430,16 @@ class DB{
         }
         return $txt;
     }
-    static function set_value_after(&$to_value, &$from_value, $after = null, $after_ins = true){
-        $to_value = $from_value;
-        if ($after_ins) $from_value= $after_ins;
-        return $to_value;
+    static function create($dbi = null){
+        if (is_null($dbi)) $dbi = new DBI();
+        return new self($dbi);
     }
-    static function global_init(){
-        global $cws_db_servise, $cws_db_host, $cws_db_name, $cws_db_user, $cws_db_pass;
-        global $cws_table_log, $cws_flag_log, $cws_err_dump, $cws_preg_ignore_ip;
-        global $cws_access_reboot, $cws_cookie_reboot;
-        if (isset($cws_db_servise)) { self::set_value_after(self::$db_host, $cws_db_servise, null); }
-        if (isset($cws_db_host)) { self::set_value_after(self::$db_host, $cws_db_host, null); }
-        if (isset($cws_db_name)) { self::set_value_after(self::$db_name, $cws_db_name, null); }
-        if (isset($cws_db_user)) { self::set_value_after(self::$db_user, $cws_db_user, null); }
-        if (isset($cws_db_pass)) { self::set_value_after(self::$db_user, $cws_db_pass, null); }
-        if (isset($cws_table_log)) { self::set_value_after(self::$table_log, $cws_table_log, null); }
-        if (isset($cws_flag_log)) { self::set_value_after(self::$flag_log, $cws_flag_log, null); }
-        if (isset($cws_err_dump)) { self::set_value_after(self::$err_dump, $cws_err_dump, null); }
-        if (isset($cws_preg_ignore_ip)) { self::set_value_after(self::$preg_ignore_ip, $cws_preg_ignore_ip, null); }
-        if (isset($cws_access_reboot)) { self::set_value_after(self::$access_reboot, $cws_access_reboot, null); }
-        if (isset($cws_cookie_reboot)) { self::set_value_after(self::$cookie_reboot, $cws_cookie_reboot, null); }
+    function __construct($dbi = null){
+        if (is_null($dbi)) $dbi = new DBI();
+        $this->session_connect($dbi);
     }
-    static function create($global_enable = true){
-        if ($global_enable) self::global_init();
-        return new self();
+    function __destruct() {
+        $this->disconnect();
     }
 }
 ?>
