@@ -14,6 +14,7 @@ require_once("cws_cookie.php");
 
 // データベースに接続するための情報
 class DBI{
+    public $cookie_use = false;      # クッキーを使うか、デフォルトで使わない(IP+日付を使う)
     public $access_reboot = false;   # ログを再びとるかどうか
     public $cookie_reboot = false;   # クッキーをリセットするかどうか
     public $ignore_access_cookie = "ignore_access_log_checked"; # 無視するクッキーの要素
@@ -40,9 +41,12 @@ class DBI{
         return $to_value;
     }
     function global_init(){
+        global $cws_cookie_use, $cws_flag_session;
         global $cws_db_servise, $cws_db_host, $cws_db_name, $cws_db_user, $cws_db_pass;
         global $cws_table_log, $cws_flag_log, $cws_err_dump, $cws_preg_ignore_ip;
         global $cws_access_reboot, $cws_cookie_reboot;
+        if (isset($cws_cookie_use)) { self::set_value_after($this->cookie_use, $cws_cookie_use, null); }
+        if (isset($cws_flag_session)) { self::set_value_after($this->flag_session, $cws_flag_session, null); }
         if (isset($cws_db_servise)) { self::set_value_after($this->db_host, $cws_db_servise, null); }
         if (isset($cws_db_host)) { self::set_value_after($this->db_host, $cws_db_host, null); }
         if (isset($cws_db_name)) { self::set_value_after($this->db_name, $cws_db_name, null); }
@@ -71,28 +75,6 @@ class DBI{
 
 class DB{
     private $access_id = "";   # セッションID_時刻の35進数をアクセスID
-    public static $access_reboot = false;   # ログを再びとるかどうか
-    public static $cookie_reboot = false;   # クッキーをリセットするかどうか
-    public static $ignore_access_cookie = "ignore_access_log_checked"; # 無視するクッキーの要素
-    public static $access_id_cookie = "access_id";  # アクセスIDのクッキー名
-    public static $preg_ignore_ip = "/ip/";     # ログ残す際に無視するipアドレス、正規表現
-    public static $table_log = "access_log";    # ログを残すときのテーブル名
-    private $use_table_log = "";        # 上で設定したテーブルの確定名
-    public static $flag_session = true; # セッションを使用するかどうかのフラグ
-    public static $flag_log = false;    # アクセスログを残すかのフラグ
-    public static $err_msg = "";        # エラーメッセージ入れるとこ
-    public static $exp_err = true;      # SQL実行時にもエラーの代わりに例外を投げるように設定
-    public static $fth_asc = true;      # デフォルトのフェッチモードを連想配列形式に設定 
-    public static $err_dump = false;    # エラー時に出力するかどうか
-    public static $db_host = "log.db"; # データベースのホスト、ファイル名かリンクかIPアドレス
-    public static $db_user = "";    # ログインするユーザー名
-    public static $db_pass = "";    # ログインするときのパスワード
-    public static $db_name = "";    # 使うデータベースの名前
-    public static $db_servise = 'sqlite';   # 使用するデータベース、標準でsqliteにした
-    private $cr_servise = "";       # 現在使っているデータベースの種類
-    private $temp_servise = "";     # STATICなデータベースから一時保存する
-    public static $db_charset = "utf8mb4";  # 扱うときの文字型です
-    public static $db_collate = ""; # 照合順序(とりあえず)
     public $dbi = null;             # データベースの情報
     public $pdo = null;             # PDOのコネクトオブジェクト
     function execute($sql) {
@@ -105,7 +87,8 @@ class DB{
             $dbi->err_msg = '';
         } catch(\Exception $e) {
             $dbi->err_msg = join('; ', $e->errorInfo);
-            if ($dbi->err_dump) { \var_dump($sql . "\n" . $dbi->err_msg); };
+            if ($dbi->err_dump) { \var_dump($sql . "\n" . $dbi->err_msg); 
+            };
             $sth = null;
         }
         return $sth;
@@ -121,7 +104,11 @@ class DB{
         } else {
             $sql = "SELECT $column FROM $table LIMIT 1;";
         }
+        $dbi = $this->dbi;
+        $tmp_err_dump = $dbi->err_dump;
+        $dbi->err_dump = false;
         $result = $this->execute($sql);
+        $dbi->err_dump = $tmp_err_dump;
         return (bool)$result;
     }
     function connect($dbi = null) {
@@ -173,8 +160,10 @@ class DB{
     function session_begin(){
         $dbi = $this->dbi;
         $pdo = $dbi->pdo;
+        $addr = $_SERVER["REMOTE_ADDR"];
+        $ignore_mode = preg_match($dbi->preg_ignore_ip, $addr);
         if ($dbi->flag_session) {
-            if (!isset($_SESSION)) { session_start(); }
+            if ($dbi->cookie_use && !isset($_SESSION)) { session_start(); }
             if (!is_null($pdo) && $dbi->flag_log) {
                 $this->use_table_log = $dbi->table_log;
                 $table = $this->use_table_log;
@@ -185,29 +174,38 @@ class DB{
                         `ip_address` " . self::set_text(60) . ",
                         `user_agent` " . self::set_text() . ",
                         `access_date` " . self::set_timestamp() . ",
+                        `referer` " . self::set_text(255) . ",
                         `document_root` " . self::set_text(255) . ",
                         `script_name` " . self::set_text(255) .
                         self::set_inc_foot() . "
                         )";
                     $this->execute($sql);
                 }
-                if ($dbi->access_reboot) { unset($_SESSION[$this->access_id]); }
-                if ($dbi->cookie_reboot) {
-                    Cookie::set($dbi->ignore_access_cookie, '', 0, "/");
+                if ($dbi->cookie_use) {
+                    if ($dbi->access_reboot) { unset($_SESSION[$this->access_id]); }
+                    if ($dbi->cookie_reboot) {
+                        Cookie::set($dbi->ignore_access_cookie, '', 0, "/");
+                    }
                 }
                 if (!isset($_COOKIE[$dbi->ignore_access_cookie])) {
-                    if (isset($_SESSION[$dbi->access_id_cookie])) {
-                        $access_id =  $_SESSION[$dbi->access_id_cookie];
-                    } elseif (isset($_COOKIE[$dbi->access_id_cookie])) {
-                        $access_id = $_COOKIE[$dbi->access_id_cookie];
+                    if ($dbi->cookie_use) {
+                        if (isset($_SESSION[$dbi->access_id_cookie])) {
+                            $access_id =  $_SESSION[$dbi->access_id_cookie];
+                        } elseif (isset($_COOKIE[$dbi->access_id_cookie])) {
+                            $access_id = $_COOKIE[$dbi->access_id_cookie];
+                        } else {
+                            $access_id = '';
+                        }
+                        if ($access_id == '') {
+                            if ($dbi->cookie_use)
+                            $access_id = base_convert(session_id()."_".time(), 10, 36);
+                        }
                     } else {
-                        $access_id = '';
-                    }
-                    if ($access_id == '') {
-                        $access_id =  session_id()."_".base_convert(time(), 10, 36);
+                        $access_id =  $addr."_".date("Ymd");
                     }
                     $dbi->access_id = $access_id;
                     $scnm = $_SERVER["SCRIPT_NAME"];
+                    $referer = isset($_SERVER["HTTP_REFERER"]) ? $_SERVER["HTTP_REFERER"] : "";
                     $sql = "SELECT count(*) FROM `" . $dbi->table_log . "` WHERE 
                      `access_id` = '$access_id' AND
                      `script_name` = '$scnm'";
@@ -217,23 +215,27 @@ class DB{
                     else
                         $row = intval($stmt->fetchColumn());
                     if ($row === 0){
-                        $addr = $_SERVER["REMOTE_ADDR"];
                         $dcrt = $_SERVER["DOCUMENT_ROOT"];
-                        if (!preg_match($dbi->preg_ignore_ip, $addr)) {
+                        if (!$ignore_mode) {
                             $user_agent = $_SERVER["HTTP_USER_AGENT"];
-                            $sql = "INSERT INTO `$table` (`ip_address`,`user_agent`,`access_id`,`document_root`,`script_name`)
-                             VALUES ('$addr', '$user_agent', '$access_id','$dcrt','$scnm')";
+                            $sql = "INSERT INTO `$table` (`ip_address`,`user_agent`,`access_id`,`referer`,`document_root`,`script_name`)
+                             VALUES ('$addr', '$user_agent', '$access_id','$referer','$dcrt','$scnm')";
                             $this->execute($sql);
-                        } else {
-                            Cookie::set($dbi->ignore_access_cookie, 1, "+3 year");
                         }
                     }
                     $stmt = null;
-                    $_SESSION[$dbi->access_id] = $access_id;
-                    if (!isset($_COOKIE[$dbi->access_id_cookie])) {
-                        Cookie::set($dbi->access_id_cookie, $access_id, "today");
+                    if ($dbi->cookie_use) {
+                        $_SESSION[$dbi->access_id] = $access_id;
+                        if (!isset($_COOKIE[$dbi->access_id_cookie])) {
+                            Cookie::set($dbi->access_id_cookie, $access_id, "today");
+                        }
                     }
                 }
+            }
+        }
+        if ($ignore_mode) {
+            if ($dbi->cookie_use) {
+                Cookie::set($dbi->ignore_access_cookie, 1, "+3 year");
             }
         }
     }
