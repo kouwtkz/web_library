@@ -1,4 +1,4 @@
-var cws = {};
+if (typeof(cws) === 'undefined') var cws = {};
 cws.to = {}
 // 配列の要素と内容を入れ替える
 cws.to.turnover = function(obj){
@@ -7,7 +7,7 @@ cws.to.turnover = function(obj){
     (value) => {retv[obj[value]] = value; return false;});
     return retv;
 }
-
+if (typeof(cws.var) === 'undefined') cws.var = {};
 cws.var = {};
 cws.var.php_path = '';
 cws.var.defaultAnsynch = true;
@@ -21,6 +21,7 @@ cws.var.re = {};
 cws.var.date_default = 'Y-m-d';
 cws.var.braceDelimiters = {'(':')', '{':'}', '[':']', '<':'>'};
 cws.var.re.time = /\d+[\-\/\:]\d+/;
+cws.var.use_cookie = false;
 
 cws.get = {};
 cws.get.domain = function(url){
@@ -911,21 +912,24 @@ cws.storage.get = function(key) {
     return getstr;
 }
 
-cws.cookie = {};
+// Cookieの書き出しは制限、読み込みは制限しない
+if (typeof(cws.cookie) === 'undefined') cws.cookie = {};
 cws.cookie.out = function(key, value = 0, time = '') {
-    let setDate = '';
-    if (value === null) {
-        value = 0;
-        setDate = ';max-age=0';
-    } else if (time === '' || time === null) {
-        setDate = ';max-age=999999999';
-    } else if (time.match(/^[\+\-]?[\d]+$/)) {
-        setDate = ';max-age=' + time;
-    } else {
-        setDate = ';expires=' + cws.to.strtotime(time).toGMTString();
+    if (cws.var.use_cookie) {
+        let setDate = '';
+        if (value === null) {
+            value = 0;
+            setDate = ';max-age=0';
+        } else if (time === '' || time === null) {
+            setDate = ';max-age=999999999';
+        } else if (time.match(/^[\+\-]?[\d]+$/)) {
+            setDate = ';max-age=' + time;
+        } else {
+            setDate = ';expires=' + cws.to.strtotime(time).toGMTString();
+        }
+        document.cookie = key + '=' + value + setDate;
+        return document.cookie;
     }
-    document.cookie = key + '=' + value + setDate;
-    return document.cookie;
 }
 cws.cookie.remove = function(key) {
     return cws.cookie.out(key, null);
@@ -948,3 +952,7 @@ function obj2array(obj){
     return Object.keys(obj).map(function (key) {return obj[key]});
 }
 
+
+cws.var.global_init = function() {
+    if (typeof(cws_cookie_use) === 'boolean') cws.cookie_use = cws_cookie_use;
+}
