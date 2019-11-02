@@ -6,10 +6,8 @@ require_once($_SERVER['DOCUMENT_ROOT']."/common/cw_init/cws.php");
 <script type="text/javascript" src="/common/cw_init/cws.js?<?php echo(get_mdate('/common/cw_init/cws.js')); ?>"></script>
 */
 namespace cws;
-/* cws\debug(true); */
-function debug($flag = true) {
-    ini_set('display_errors', $flag?"On":"Off");
-}
+// $cws_debug_mode = true;
+if(!isset($cws_require_enable) && !$cws_require_enable) include_once('cws_require.php');
 class server{
     function __construct($thisfile = __FILE__){
         $t = $this;
@@ -19,10 +17,11 @@ class server{
         $t->path = preg_replace("/\?.+$/",'',getval($_SERVER['REQUEST_URI'], ''));
         $t->url = $t->basehost.$t->path;
         $t->root = $_SERVER['DOCUMENT_ROOT'];
+        $t->root_common = preg_replace('/([\\/\\\\]common).*$/', __FILE__, '$1');
         $t->pathlist = explode('/', $t->path);
         $t->php_path = str_replace($t->root,'',str_replace('\\','/',__FILE__));
         $t->php_dir = getdir($t->php_path);
-        $t->ref_url = getval($_SERVER['HTTP_REFERER'], "");
+        $t->ref_url = getval($_SERVER, 'HTTP_REFERER', "");
         $t->ref_domain = getdomain($t->ref_url);
         $t->ref_basehost = getbasehost($t->ref_url);
         $t->ref_dir = getdir($t->ref_url);
@@ -144,28 +143,7 @@ function getval($val_or_array, $key_or_nullval = null, $nullval = null) {
         return (is_null($val_or_array) ? $key_or_nullval : $val_or_array);
     }
 }
-// パスの存在チェック、存在しないときは空かパス名のいずれかを返す
-function get_path(string $path, bool $return_blank = true) {
-    $docpath = get_docpath($path, true);
-    if ($docpath !== '') {
-        return $path;
-    } else {
-        return $return_blank ? '' : $path;
-    }
-}
-// /から始まる相対パスを変換、存在しないときは空かパス名のいずれかを返す
-function get_docpath(string $path, bool $return_blank = true) {
-    if (strpos($path, '/') === 0) {
-        $path = $_SERVER['DOCUMENT_ROOT'].$path;
-    }
-    if ($path !== '' && file_exists($path)) {
-        return $path;
-    } else {
-        return $return_blank ? '' : $path;
-    }
-}
 // ファイル名の両端の名前のファイルが存在するかチェックする
-
 function get_eachpath(string $path, string $dir = '', string $head = '',
     string $foot = '', string $ext = '', bool $return_blank = true){
     $path = ($path) ? $dir.$path : $path;

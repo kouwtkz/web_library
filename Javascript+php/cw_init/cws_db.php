@@ -100,9 +100,9 @@ class DB{
     }
     function exists($table, $column = "") {
         if ($column === "") {
-            $sql = "SELECT 1 FROM $table LIMIT 1;";
+            $sql = "SELECT 1 FROM `$table` LIMIT 1;";
         } else {
-            $sql = "SELECT $column FROM $table LIMIT 1;";
+            $sql = "SELECT `$column` FROM `$table` LIMIT 1;";
         }
         $dbi = $this->dbi;
         $tmp_err_dump = $dbi->err_dump;

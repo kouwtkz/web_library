@@ -758,7 +758,7 @@ cws.write.style = function(css = '', id_or_object){
 cws.ajax = {};
 cws.ajax.onload = function(){};
 cws.ajax.result = {};
-// argsの引数は "ansynch", "method", "form", "request", "catch", "type", "filelist"を検知、取得する
+// argsの引数は主に"request"を取る、他に"ansynch", "method", "form", "catch", "type", "filelist"を取得する
 cws.ajax.run = function(target, onload, args = {}, opt = 0) {
     if (typeof(args) !== "object" || args === null) {args = {}};
     const catchfunc = cws.get.key(args, "catch", null);
