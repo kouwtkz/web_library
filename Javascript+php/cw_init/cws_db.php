@@ -31,10 +31,11 @@ class DBI{
     public $db_user = "";    # ログインするユーザー名
     public $db_pass = "";    # ログインするときのパスワード
     public $db_name = "";    # 使うデータベースの名前
-    public $db_servise = 'sqlite';   # 使用するデータベース、標準でsqliteにした
-    public $db_charset = "utf8mb4";  # 扱うときの文字型です
+    public $db_servise = 'sqlite';  # 使用するデータベース、標準でsqliteにした
+    public $db_charset = "utf8mb4"; # 扱うときの文字型です
     public $db_collate = "";    # 照合順序(とりあえず)
     public $pdo = null;         # PDOのコネクトオブジェクト
+    public $flag_bind_param = true;     # TrueならbindParam、FalseならbindValueを使う
     static function set_value_after(&$to_value, &$from_value, $after = null, $after_ins = true){
         $to_value = $from_value;
         if ($after_ins) $from_value= $after_ins;
@@ -83,7 +84,7 @@ class DB{
         $dbh = $dbi->pdo;
         try{
             $sth = $dbh->prepare($sql);
-            self::bind($param, $sth);
+            self::bind($param, $sth, $dbi->flag_bind_param);
             $sth->execute();
             $dbi->err_msg = '';
         } catch(\Exception $e) {
@@ -155,14 +156,18 @@ class DB{
         $this->pdo = null;
         return $this->pdo;
     }
-    static function bind($param, &$sth){
+    static function bind($param, &$sth, $flag_bind_param = true){
         foreach ($param as $k => $p) {
             if (is_array($p)) {
-                self::bind($p, $sth);
+                self::bind($p, $sth, $flag_bind_param);
                 continue;
             }
             if (is_numeric($k)) $k = intval($k) + 1;
-            $sth->bindParam($k, $p);
+            if ($flag_bind_param) {
+                $sth->bindParam($k, $p);
+            } else {
+                $sth->bindValue($k, $p);
+            }
         }
     }
     static function escape($param){
