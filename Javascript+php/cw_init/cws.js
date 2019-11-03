@@ -758,12 +758,24 @@ cws.write.style = function(css = '', id_or_object){
 cws.ajax = {};
 cws.ajax.onload = function(){};
 cws.ajax.result = {};
+// targetにフォームエレメントを指定した時、Actionとフォームのデータを自動的に取得する
 // argsの引数は主に"request"を取る、他に"ansynch", "method", "form", "catch", "type", "filelist"を取得する
-cws.ajax.run = function(target, onload, args = {}, opt = 0) {
+cws.ajax.run = function(target, onload = null, args = {}, opt = 0) {
+    let target_check = null, fm = null;
     if (typeof(args) !== "object" || args === null) {args = {}};
     const catchfunc = cws.get.key(args, "catch", null);
     try {
-        if (typeof(target) !== "string") target = cws.var.php_path;
+        target_check = cws.ajax.form(target);
+        if (target_check === null) {
+            if (typeof(target) !== "string") {
+                target = cws.var.php_path;
+            }
+        }
+        target_check = cws.ajax.form(cws.get.key(args, "form", target_check));
+        if (target_check !== null) {
+            fm = target_check;
+            if (typeof(target) !== "string") target = fm.action;
+        }
         let ansynch = cws.get.key(args, "ansynch", true);
         if (ansynch === null) {
             ansynch = cws.var.defaultAnsynch;
@@ -775,7 +787,6 @@ cws.ajax.run = function(target, onload, args = {}, opt = 0) {
         if (opt & 1) {
             rq["refpath"] = cws.get.str(cws.get.key(args, "refpath", location.pathname))
         }
-        let fm = cws.get.key(args, "form", null);
         if (mtd !== "GET") {
             fm = cws.to.form(rq, filename_list, fm, target);
             target = target.replace(/\?.*$/, "");
@@ -824,6 +835,19 @@ cws.ajax.run = function(target, onload, args = {}, opt = 0) {
         return false;
     }
 }
+cws.ajax.form = function(data){
+    const data_callname = Object.prototype.toString.call(data);
+    if (data_callname === '[object HTMLFormElement]') {
+        const _formdata = new FormData(data);
+        _formdata.action = data.action;
+        return _formdata;
+    } else if(data_callname === '[object FormData]') {
+        if (typeof(data.action) === 'undefined') data.action = '';
+        return data;
+    } else {
+        return null;
+    }
+}
 // runajaxにjsonを含み、Jsonを渡すプログラム
 cws.ajax.json = function(target = cws.var.php_path, json = "", args = {}, opt = 0) {
     let fm = this.get.key(args, "form");
@@ -837,61 +861,6 @@ cws.ajax.json = function(target = cws.var.php_path, json = "", args = {}, opt = 
     args["method"] = "POST";
     args["form"] = fm;
     return cws.ajax.run(target, args, opt);
-}
-cws.post = {};
-cws.post.child = window;
-cws.post.onload = function(){}
-cws.post.open = function(VALorELEM = {}, url = null, target = "", formdata_obj = null, opt = 3){
-    let felem = false;
-    if ((typeof(VALorELEM)==="object")&&(VALorELEM.$cws_dir!==undefined)){
-        VALorELEM = cws.get.partag(VALorELEM, "form");
-        felem = true;
-        if (opt & 1) {VALorELEM.setAttribute("method", "POST");}
-        if (opt & 2) {VALorELEM.setAttribute("enctype", "multipart/form-data");}
-        const act = VALorELEM.getAttribute("action");
-        if (url===null) {
-            if (act!==null) {
-                url = act; VALorELEM.setAttribute("action", url);
-            }
-            else {return false;}
-        }
-        if (target==="") {target = cws.get.str(VALorELEM.getAttribute("target"));}
-    } else {
-        url = cws.get.str(url);
-    }
-    const cntname = "cws_" + cws.get.date36()
-    if (target===undefined || typeof(target)==="object" || target==="_blank") {
-        cws.post.child = window.open("",cntname);
-    } else if (target==="") {
-        cws.post.child = window;
-    } else {
-        cws.post.child = window.open("",target);
-    }
-    const sendtgt = cws.post.child.name
-    if (felem) { VALorELEM.setAttribute("target", sendtgt); }
-    let fm = null;
-    loadfunc = function(e){
-        e.submit();
-        if (opt & 4) { VALorELEM.setAttribute("target", target); }
-        if (cws.var.domain === cws.get.domain(url)) {
-            setTimeout(()=>{
-                cws.post.child.addEventListener("load", cws.post.onload(), false);
-            }, 5);
-        }
-    }
-    if (felem) {
-        fm = cws.to.form(VALorELEM, null, formdata_obj, url);
-    } else {
-        fm = VALorELEM;
-    }
-    url = cws.get.link(url).replace(/\?.*$/, "");
-    if (felem) {
-        loadfunc(VALorELEM);
-    } else {
-        cws.write.onload = loadfunc;
-        cws.write.form(fm, cws.post.child, url);
-    }
-    return true;
 }
 
 cws.storage = {};
