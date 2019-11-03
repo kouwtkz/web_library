@@ -77,12 +77,13 @@ class DB{
     private $access_id = "";   # セッションID_時刻の35進数をアクセスID
     public $dbi = null;             # データベースの情報
     public $pdo = null;             # PDOのコネクトオブジェクト
-    function execute($sql) {
+    function execute($sql, ...$param) {
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
         $dbh = $dbi->pdo;
         try{
             $sth = $dbh->prepare($sql);
+            self::bind($param, $sth);
             $sth->execute();
             $dbi->err_msg = '';
         } catch(\Exception $e) {
@@ -93,12 +94,13 @@ class DB{
         }
         return $sth;
     }
-    function execute_all($sql) {
-        $sth = $this->execute($sql);
+    function execute_all($sql, ...$param) {
+        $sth = $this->execute($sql, $param);
         $result = $sth->fetchAll();
         return $result;
     }
     function exists($table, $column = "") {
+        $param = array();
         if ($column === "") {
             $sql = "SELECT 1 FROM `$table` LIMIT 1;";
         } else {
@@ -152,6 +154,16 @@ class DB{
         $dbi->pdo = null;
         $this->pdo = null;
         return $this->pdo;
+    }
+    static function bind($param, &$sth){
+        foreach ($param as $k => $p) {
+            if (is_array($p)) {
+                self::bind($p, $sth);
+                continue;
+            }
+            if (is_numeric($k)) $k = intval($k) + 1;
+            $sth->bindParam($k, $p);
+        }
     }
     static function escape($param){
         $param = preg_replace("/(\'|\\\\)/","$1$1",$param);
