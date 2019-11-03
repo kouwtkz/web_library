@@ -22,6 +22,11 @@ cws.var.date_default = 'Y-m-d';
 cws.var.braceDelimiters = {'(':')', '{':'}', '[':']', '<':'>'};
 cws.var.re.time = /\d+[\-\/\:]\d+/;
 cws.var.use_cookie = false;
+cws.var.input_list = {
+    'hidden': 3, 'text': 3, 'search': 5, 'tel': 5, 'url': 5, 'email': 5, 'password': 3,
+    'datetime': 5, 'date':5, 'month': 5, 'week': 5, 'time': 5, 'datetime-local': 5,
+    'number': 5, 'range': 5, 'range': 5, 'color': 5, 'checkbox': 3,
+    'radio': 3, 'file': 3, 'submit': 3, 'image': 3, 'reset': 3, 'button': 1};
 
 cws.get = {};
 cws.get.domain = function(url){
@@ -606,49 +611,167 @@ cws.get.search = function(subject, keyword) {
 // Element書き込み関数、FormDataから書き出すこともできます（主にデータ送信に使用）
 cws.write = {};
 cws.write.onload = function(){};
-cws.write.form = function(fm, insertobj = document, action = "", id = "", otherelm = "", inputtype = "hidden", opt = 0){
-    if (fm.entries === undefined) {
-        if (typeof(fm) === "object") {
-            fm = cws.to.form(fm, null, null);
-        } else {
-            fm = String(fm);
-            fm = cws.to.form(null, null, null, (fm.match(/\?/)?"":"?") + fm);
-        }
-    }
-    const temp_fm_id = "__temp__fm__" + Math.floor(Math.random() * 9999 + 1);
-    if (insertobj.document !== undefined) { insertobj = insertobj.document; }
-    const docm = cws.get.parelm(insertobj);
-    cws.write.elem("form", "\n", insertobj, temp_fm_id, otherelm, opt);
-
-    const temp_fm = docm.getElementById(temp_fm_id);
-    const rd = new FileReader();
-    let eof = false;
-    let stocklist = {};
-    if (action !== "") { temp_fm.setAttribute("action", action); }
-    if (id !== "") { temp_fm.setAttribute("id", id); }
-    temp_fm.setAttribute("method", "POST");
-    if (fm === null || typeof(fm) !== "object") {fm = [];}
-    let inline_value = '';
-    for(item of fm){
-        inline_value = ''
-        if ((typeof(item[1]))!=="object"){inline_value = item[1];}
-        else if (item[1] === null) {inline_value = '';}
-        else {
-            inline_value = item[1]["name"];
-            rd.onload = function(){
-                temp_fm.innerHTML += "<input type='" + inputtype + "' name='" + item[0] + "_base64' value='" + this.result + "' />\n";
-                delete stocklist[item[0]];
-                if (eof && Object.keys(stocklist).length === 0) {cws.write.onload(temp_fm); cws.write.onload = function(){};}
+// form = null              form、名前の場合は名前検索を行う、なければ作る
+// attribute = {}           formタグの要素配列、自動的に入れる
+// action = ''              formの実行先
+// method = 'POST'          formの実行方式
+// parent = body            挿入先、指定なしでbodyタグに入れる
+// hidden = false           新たに挿入するformを隠す
+// hidden_new_input = false 新たに挿入するform内の要素を隠す
+// document = document      documentオブジェクト、変えることはあまりないかも
+// data [[value], [name, value], [type or tag, name, value]]
+// data [{0:value}, {0:name, 1:value}, {0:type or tag, 1:name, 2:value}]
+cws.write.form = function(data = {}, args = {}){
+    var str, m;
+    var new_instance = false;
+    if (typeof(data) !== "object" || data === null) {data = {}};
+    if (typeof(args) !== "object" || args === null) {args = {}};
+    var doc = document;
+    if (typeof(args.document) === 'object') { doc = args.document; }
+    var hidden = (typeof(args.hidden) === 'boolean') ? args.hidden : false;
+    var hidden_new_input = (typeof(args.hidden_new_input) === 'boolean') ? args.hidden_new_input : false;
+    var id = null;
+    var local_form = null;
+    var form_typeof = typeof(args.form);
+    if (form_typeof === 'object') {
+        form_typeof = Object.prototype.toString.call(args.form);
+        if (form_typeof === '[object HTMLFormElement]') {
+            if (args.form.tagName === 'FORM') {
+                local_form = args.form;
             }
-            stocklist[item[0]] = true;
-            rd.readAsDataURL(item[1]);
         }
-        temp_fm.innerHTML += "<input type='" + inputtype + "' name='" + item[0] + "' value='" + inline_value + "' />\n";
+    } else if (form_typeof !== 'undefined') {
+        local_form = 'form';
+        if (form_typeof === 'string'){
+            if (args.form !== '') local_form = args.form;
+            str = local_form;
+            local_form = doc.querySelector(str);
+            if (local_form === null) {
+                m = str.match(/([^\#]*)$/);
+                if (m !== null) m = m[1].match(/^([^\.\s]*)/);
+                if (m !== null) id = m[1];
+            }
+        } else if (form_typeof === 'number') {
+            local_form = cws.get.key(doc.querySelectorAll(local_form), args.form, null);
+        } else {
+            local_form = null;
+        }
     }
-    eof = true;
-    if (Object.keys(stocklist).length === 0) {cws.write.onload(temp_fm); cws.write.onload = function(){};}
-    return temp_fm.id;
-};
+    if (local_form === null) {
+        local_form = doc.createElement('form');
+        new_instance = true;
+        if (id !== null) {
+            local_form.id = id
+        }
+        else {
+            id = '';
+        }
+    } else {
+        id = local_form.id;
+    }
+    if (hidden) {
+        local_form.style.display = 'none';    
+    } else {
+        if (local_form.style.display === 'none') local_form.style.display = '';
+    }
+    if (typeof(args.action) === 'string') {
+        local_form.action = args.action;
+    }
+    if (typeof(args.method) === 'string') {
+        local_form.method = args.method;
+    } else {
+        local_form.method = 'POST';
+    }
+
+    var local_parent = null;
+    var parent_typeof = typeof(args.parent);
+    if (parent_typeof === 'object') {
+        parent_typeof = Object.prototype.toString.call(args.parent);
+        if (parent_typeof === '[object HTMLFormElement]') {
+            local_parent = args.parent;
+        }
+    } else {
+        if (parent_typeof === 'string'){
+            if (args.parent !== '') {
+                local_parent = doc.querySelector(args.parent);
+            } else {
+                local_parent = null;
+            }
+        }
+    }
+    if (local_parent === null) local_parent = doc.querySelector('body');
+    if (new_instance) {
+        local_parent.append(local_form);
+    }
+    var attribute = (typeof(args.attribute) !== "object" || args.attribute === null) ? {} : args.attribute;
+    Object.keys(attribute).forEach((k)=>{
+        local_form.setAttribute(k, attribute[k]);
+    });
+    Object.keys(data).forEach((k)=>{
+        var wait = 0;
+        var args = data[k];
+        var local_input = null;
+        var input_typeof = typeof(args);
+        if (input_typeof === 'object') {
+            input_typeof = Object.prototype.toString.call(local_input);
+            if (input_typeof === '[object HTMLDocument]') {
+                local_input = args;
+            } else {
+                if (args)
+                var create_tag = 'input';
+                var do_setattr_type = '';
+                var keys = Object.keys(args);
+                var arg0_enable = typeof(args[0]) !== 'undefined';
+                var arg1_enable = typeof(args[1]) !== 'undefined';
+                var arg2_enable = typeof(args[2]) !== 'undefined';
+                var arg02_enable = arg0_enable && arg1_enable && arg2_enable;
+
+                if (arg02_enable) {
+                    var input_type_num = cws.get.key(cws.var.input_list, args[0], 0);
+                    if (input_type_num > 2) {
+                        do_setattr_type = args[0].toString();
+                    } else {
+                        create_tag = args[0];
+                    }
+                }
+                if (typeof(args['tag']) !== 'undefined') {
+                    create_tag = args['tag'].toString();
+                }
+                local_input = doc.createElement(create_tag);
+                if (do_setattr_type !== '') local_input.setAttribute('type', do_setattr_type);
+                if (arg0_enable) {
+                    if (!arg1_enable) {
+                        local_input.setAttribute('value', args[0]);
+                    } else if (!arg2_enable) {
+                        local_input.setAttribute('name', args[0]);
+                        local_input.setAttribute('value', args[1]);
+                    } else {
+                        local_input.setAttribute('name', args[1]);
+                        local_input.setAttribute('value', args[2]);
+                    }
+                }
+                keys.forEach((k)=>{
+                    if (isNaN(Number(k))) {
+                        local_input.setAttribute(k, args[k]);
+                    }
+                });
+            }
+        } else {
+            local_input = doc.createElement('input');
+            if (isNaN(Number(k))) {
+                local_input.setAttribute(k, args);
+            } else {
+                local_input.setAttribute('value', args);    
+            }
+        }
+        if (hidden_new_input) {
+            local_input.style.display = 'none';    
+        } else {
+            if (local_input.style.display === 'none') local_input.style.display = '';
+        }
+        local_form.append(local_input);
+    });
+}
 cws.write.script = function(inline = "", insertobj = document, id = "", otherelm = "", opt = 0){
     if (insertobj.document !== undefined) { insertobj = insertobj.document; }
     const docm = cws.get.parelm(insertobj);
