@@ -1,12 +1,13 @@
 <?php
 namespace cws;
-
 // $cws_jump_to = '/hogehoge';
 // $cws_jump_trigger = '/\/redirect/';
 if(!isset($cws_jump_to)) $cws_jump_to = '';
 if(!isset($cws_jump_not_preg)) $cws_jump_not_preg = '';
 if(!isset($cws_jump_trigger)) $cws_jump_trigger = '';
 if(!isset($cws_jump_replace) || $cws_jump_replace === '') $cws_jump_replace = $cws_jump_to.'$0';
+if(!isset($cws_jump_redirect_port)) $cws_jump_redirect_port = '';
+if(!isset($cws_jump_redirect_host)) $cws_jump_redirect_host = '';
 
 $cws_jump_replace = server_ireplace($cws_jump_replace);
 if (!isset($cws_localhost_preg)) $cws_localhost_preg = '/192\.168|127/';
@@ -27,7 +28,6 @@ function server_ireplace(string $str){
     }
     return $str;
 }
-
 (function(){
     global $cws_jump_to, $cws_jump_not_preg, $_jump_mode;
     $doc = '/'.$_SERVER["HTTP_HOST"].$_SERVER['DOCUMENT_ROOT'];
@@ -37,8 +37,23 @@ function server_ireplace(string $str){
         $_jump_mode = ($cws_jump_to !== '') ? !preg_match($cws_jump_not_preg, $doc) : false;
     }
 })();
-
-
+function path_auto_jump(string $path, bool $redirect = true){
+    global $_jump_mode, $cws_jump_trigger, $cws_jump_replace, $cws_jump_not_trigger;
+    if ($_jump_mode && ($cws_jump_trigger !== '')) {
+        if (preg_match($cws_jump_trigger, $path) && !preg_match($cws_jump_not_trigger, $path) ) {
+            $path = preg_replace($cws_jump_trigger, $cws_jump_replace, $path);
+        }
+    }
+    return $path;
+}
+function path_auto_doc($path){
+    $doc = $_SERVER['DOCUMENT_ROOT'];
+    $path = path_auto_jump($path, false);
+    if (strpos($path, '/') === 0) {
+        $path = $doc.$path;
+    }
+    return $path;
+}
 // パスの存在チェック、存在しないときは空かパス名のいずれかを返す
 function get_path(string $path, bool $return_blank = true) {
     $docpath = get_docpath($path, true);
@@ -50,16 +65,7 @@ function get_path(string $path, bool $return_blank = true) {
 }
 // /から始まる相対パスを変換、存在しないときもファイルパスとして出力する）
 function get_docpath(string $path, bool $return_blank = false) {
-    global $_jump_mode, $cws_jump_trigger, $cws_jump_replace, $cws_jump_not_trigger;
-    $doc = $_SERVER['DOCUMENT_ROOT'];
-    if ($_jump_mode && ($cws_jump_trigger !== '')) {
-        if (preg_match($cws_jump_trigger, $path) && !preg_match($cws_jump_not_trigger, $path) ) {
-            $path = preg_replace($cws_jump_trigger, $cws_jump_replace, $path);
-        }
-    }
-    if (strpos($path, '/') === 0) {
-        $path = $doc.$path;
-    }
+    $path = path_auto_doc($path);
     if ($path !== '' && file_exists($path)) {
         return $path;
     } else {
@@ -73,4 +79,4 @@ if(isset($cws_debug_mode) && $cws_debug_mode) {
     debug(true);
 }
 /* cws\debug(true); */
-?>
+?>`

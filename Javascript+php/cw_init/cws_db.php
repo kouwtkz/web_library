@@ -82,6 +82,7 @@ class DB{
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
         $dbh = $dbi->pdo;
+        if ($dbh === null) return null;
         try{
             $sth = $dbh->prepare($sql);
             self::bind($param, $sth, $dbi->flag_bind_param);
@@ -97,11 +98,10 @@ class DB{
     }
     function execute_all($sql, ...$param) {
         $sth = $this->execute($sql, $param);
-        $result = $sth->fetchAll();
+        $result = ($sth !== null) ? $sth->fetchAll() : array();
         return $result;
     }
     function exists($table, $column = "") {
-        $param = array();
         if ($column === "") {
             $sql = "SELECT 1 FROM `$table` LIMIT 1;";
         } else {
@@ -176,78 +176,12 @@ class DB{
     }
     function session_begin(){
         $dbi = $this->dbi;
-        $pdo = $dbi->pdo;
-        $addr = $_SERVER["REMOTE_ADDR"];
-        $ignore_mode = preg_match($dbi->preg_ignore_ip, $addr);
+        $ignore_mode = preg_match($dbi->preg_ignore_ip, $_SERVER["REMOTE_ADDR"]);
         if ($dbi->flag_session) {
             if ($dbi->cookie_use && !isset($_SESSION)) { session_start(); }
-            if (!is_null($pdo) && $dbi->flag_log) {
-                $this->use_table_log = $dbi->table_log;
-                $table = $this->use_table_log;
-                if (!$this->exists($table)) {
-                    $sql = "CREATE TABLE `$table` (
-                        `ID` " . self::set_inc() . ",
-                        `access_id` " . self::set_text(60) . ",
-                        `ip_address` " . self::set_text(60) . ",
-                        `user_agent` " . self::set_text() . ",
-                        `access_date` " . self::set_timestamp() . ",
-                        `referer` " . self::set_text(255) . ",
-                        `document_root` " . self::set_text(255) . ",
-                        `script_name` " . self::set_text(255) .
-                        self::set_inc_foot() . "
-                        )";
-                    $this->execute($sql);
-                }
-                if ($dbi->cookie_use) {
-                    if ($dbi->access_reboot) { unset($_SESSION[$this->access_id]); }
-                    if ($dbi->cookie_reboot) {
-                        Cookie::set($dbi->ignore_access_cookie, '', 0, "/");
-                    }
-                }
-                if (!isset($_COOKIE[$dbi->ignore_access_cookie])) {
-                    if ($dbi->cookie_use) {
-                        if (isset($_SESSION[$dbi->access_id_cookie])) {
-                            $access_id =  $_SESSION[$dbi->access_id_cookie];
-                        } elseif (isset($_COOKIE[$dbi->access_id_cookie])) {
-                            $access_id = $_COOKIE[$dbi->access_id_cookie];
-                        } else {
-                            $access_id = '';
-                        }
-                        if ($access_id == '') {
-                            if ($dbi->cookie_use)
-                            $access_id = base_convert(session_id()."_".time(), 10, 36);
-                        }
-                    } else {
-                        $access_id =  $addr."_".date("Ymd");
-                    }
-                    $dbi->access_id = $access_id;
-                    $scnm = $_SERVER["SCRIPT_NAME"];
-                    $referer = isset($_SERVER["HTTP_REFERER"]) ? $_SERVER["HTTP_REFERER"] : "";
-                    $sql = "SELECT count(*) FROM `" . $dbi->table_log . "` WHERE 
-                     `access_id` = '$access_id' AND
-                     `script_name` = '$scnm'";
-                    $stmt = $this->execute($sql);
-                    if (is_null($stmt))
-                        $row = 0;
-                    else
-                        $row = intval($stmt->fetchColumn());
-                    if ($row === 0){
-                        $dcrt = $_SERVER["DOCUMENT_ROOT"];
-                        if (!$ignore_mode) {
-                            $user_agent = $_SERVER["HTTP_USER_AGENT"];
-                            $sql = "INSERT INTO `$table` (`ip_address`,`user_agent`,`access_id`,`referer`,`document_root`,`script_name`)
-                             VALUES ('$addr', '$user_agent', '$access_id','$referer','$dcrt','$scnm')";
-                            $this->execute($sql);
-                        }
-                    }
-                    $stmt = null;
-                    if ($dbi->cookie_use) {
-                        $_SESSION[$dbi->access_id] = $access_id;
-                        if (!isset($_COOKIE[$dbi->access_id_cookie])) {
-                            Cookie::set($dbi->access_id_cookie, $access_id, "today");
-                        }
-                    }
-                }
+            if ($dbi->flag_log) {
+                include_once('cws_db_log.php');
+                cws_db_set_log($this);
             }
         }
         if ($ignore_mode) {

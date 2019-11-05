@@ -16,10 +16,8 @@ class server{
         $t->basehost = $t->scheme.'://'.getval($_SERVER['HTTP_HOST'], '');
         $t->path = preg_replace("/\?.+$/",'',getval($_SERVER['REQUEST_URI'], ''));
         $t->url = $t->basehost.$t->path;
-        $t->root = $_SERVER['DOCUMENT_ROOT'];
-        $t->root_common = preg_replace('/([\\/\\\\]common).*$/', __FILE__, '$1');
         $t->pathlist = explode('/', $t->path);
-        $t->php_path = str_replace($t->root,'',str_replace('\\','/',__FILE__));
+        $t->php_path = str_replace($_SERVER['DOCUMENT_ROOT'],'',str_replace('\\','/',__FILE__));
         $t->php_dir = getdir($t->php_path);
         $t->ref_url = getval($_SERVER, 'HTTP_REFERER', "");
         $t->ref_domain = getdomain($t->ref_url);
@@ -143,6 +141,47 @@ function getval($val_or_array, $key_or_nullval = null, $nullval = null) {
         return (is_null($val_or_array) ? $key_or_nullval : $val_or_array);
     }
 }
+//  配列用の値チェック、自動削除も可能
+function getref(array &$array, $key, $do_unset = false, $empty_val = null, $empty_set = false) {
+    if (empty($array[$key])) {
+        if ($empty_set && !$do_unset) $array[$key] = $empty_val;
+        return $empty_val;
+    } else {
+        $retval = $array[$key];
+        if ($do_unset) unset($array[$key]);
+        return $retval;
+    }
+    return (empty($array[$key_or_nullval])) ? $nullval : @$val_or_array[$key_or_nullval];
+}
+// クエリを足して配列で返す
+function get_include_query($query, $new = array(), bool $query_only = false){
+    switch (gettype($query)) {
+        case 'array':
+            $query_array = $query;
+            break;
+        case 'string':
+            $query_array = array();
+            if (!$query_only) {
+                $query = \parse_url($query, PHP_URL_QUERY);
+            }
+            \parse_str($query, $query_array);
+            break;
+        default:
+            $query_array = array();
+    }
+    switch (gettype($new)) {
+        case 'array':
+            $new_array = $new;
+            break;
+        case 'string':
+            $new_array = array();
+            \parse_str($new, $new_array);
+            break;
+        default:
+            $new_array = array();
+    }
+    return array_merge($query_array, $new_array);
+}
 // ファイル名の両端の名前のファイルが存在するかチェックする
 function get_eachpath(string $path, string $dir = '', string $head = '',
     string $foot = '', string $ext = '', bool $return_blank = true){
@@ -155,76 +194,179 @@ function get_eachpath(string $path, string $dir = '', string $head = '',
     return $check ? $eachpath : ($return_blank ? '' : $path);
 }
 // 更新日のクエリだけ返す
-function get_mdate($path) {
+function get_mdate($path, $char = 'v') {
     $path = get_docpath($path);
     if ($path !== '') {
         $mdate = filemtime($path);
     } else {
         $mdate = 0;
     }
-    if ($mdate !== 0) {return 'v='.$mdate;} else {return '';}
-
+    if ($mdate !== 0) {return $char.'='.$mdate;} else {return '';}
 }
-// 更新日を付与してhtmlの出力
-// あとtxtファイルはtxtとして返される（直接変換する）
-// opt|4はElement要素の出力を同時に行うかどうか
-function set_linkdata($gpath, $tag=null, $opt = 3){
-    $bid = getval($tag['id']);
-    if($bid!=null){unset($tag['id']);}
-    $btag = '';
-    switch(gettype($tag)){
-    case 'array':
-        $keys = array_keys($tag);
-        for ($i = 0;$i < count($keys);++$i) {
-            $val = $tag[$keys[$i]];
-            if(gettype($val)=='array'){$val=implode(' ',$val);}
-            $btag = $btag.' '.$keys[$i].'="'.$val.'"';
-        }
-        break;
-    case 'string':
-        $btag = ' '.$tag;
-    }
-    $lpath = $gpath;
-    if(gettype($gpath) === 'string'){ $lpath = array($lpath); }
-    if(gettype($lpath) === 'array'){
-        $keys = array_keys($lpath);
-        for ($i = 0;$i < count($keys);++$i) {
-            $p = preg_replace("/\?.+$/", '', $lpath[$keys[$i]]);
-            $dp = get_docpath($p);
-            $ext = mb_strtolower(pathinfo($p, PATHINFO_EXTENSION));
-            if (($opt&1)&&($ext=='txt')) {
-                if ($opt & 2) {
-                    if ($dp != '') {
-                        $lpath[$keys[$i]] = array('element'=>null, 'content'=>file_get_contents($dp),'path'=>$p, 'get_docpath'=>$dp);
-                        if ($opt & 4) {echo($lpath[$keys[$i]]);}
-                    }
-                }
+// クエリやアトリビュートの連結関数
+function join_attr(string $separator, string $bracket, ...$query){
+    $char_array = array();
+    $local_join = function($local_query, $value_to_key = false) use (&$char_array, &$local_join, $bracket){
+        foreach ($local_query as $k => $v) {
+            if (is_array($v)) {
+                $local_join($v);
+                continue;
             } else {
-                if ($dp !== '') {
-                    $mdate = filemtime($dp);
+                if ($value_to_key) {
+                    $char_array[] = $v;
+                } elseif($v === '') {
+                    if ($k !== '') $char_array[] = $k;
                 } else {
-                    $mdate = 0;
-                }
-                if ($mdate !== 0) {$elm = $p.(preg_match("/\?/", $p) ? '&' : '?').'v='.$mdate;} else {$elm = $p;}
-                if ($opt & 2) {
-                    $addtag = (($bid!=null)?(' id="'.$bid.(count($keys)>1)?$i:''.'"'):'').$btag;
-                    switch ($ext) {
-                        case 'css': $elm = '<link rel="stylesheet"'.$addtag.' href="'.$elm.'" type="text/css" media="all">'; break;
-                        case 'js': $elm = '<script type="text/javascript"'.$addtag.' src="'.$elm.'"></script>'; break;
-                        case 'png': case 'jpg': case 'jpeg': case 'gif': case 'tiff': case 'bmp':
-                            $elm = '<img'.$addtag.($opt&1?' alt="'.$keys[$i]:'').'" src="'.$elm.'" />'; break;
-                        default : $elm = '';
-                        var_dump($elm);
-                    }
-                    if (($opt & 4)&&($elm!='')){echo($elm."\n");}
-                    $lpath[$keys[$i]] = array('element'=>$elm, 'content'=>null,'path'=>$p, 'get_docpath'=>$dp);
+                    $char_array[] = $k.'='.$bracket.$v.$bracket;
                 }
             }
         }
-        if(gettype($gpath) === "string"){ $lpath = $lpath[$keys[0]]; }
-        return $lpath;
-    }
-    return ($opt&2)?array():null;
+    };
+    $local_join($query, true);
+    return implode($separator, $char_array);
+}
+
+// 更新日を付与してhtmlの出力(改_201911)
+function set_linkdata(...$data_list){
+    $out_list = array();
+    $default_opt = array('write_text'=>true, 'create'=>true, 'output'=>true, 'add_date'=>true);
+    $local_set = function ($data_list, $arg_opt) use (&$local_set, &$out_list) {
+        $keys = array_keys($data_list);
+        for ($i = 0;$i < count($keys);++$i) {
+            $data = $data_list[$keys[$i]];
+            if (gettype($data) !== 'array') {
+                $data = array($data);
+            }
+            $lopt = getref($data, -1, true, array());
+            if (gettype($lopt)==='array') {
+                $opt = array_merge($arg_opt, $lopt);
+            } else {
+                $opt = $lopt;
+            }
+            if (gettype(current($data)) === 'array') {
+                $local_set($data, $opt);
+                continue;
+            }
+    
+            $rel = '';
+            $type = '';
+            $elm = '';
+            $num = 0;
+            $src = getref($data, 'src', true, '');
+            $src = getref($data, $num++, true, $src);
+            $attr = getref($data, 'attr', true, '');
+            $attr .= getref($data, $num++, true, '');
+            $tag = getref($data, 'tag', true, '');
+            $tag .= getref($data, $num++, true, '');
+            $inner = getref($data, 'inner', true, '');
+            $inner .= getref($data, $num++, true, ' ');
+            $ps = strpos($src, '?');
+            $p = $ps ? substr($src, 0, $ps) : $src;
+            $dp = get_docpath($p);
+            $ext = mb_strtolower(pathinfo($p, PATHINFO_EXTENSION));
+            // txtファイルはテキストデータとして直接返される
+            if ($opt['write_text']&&($ext=='txt')) {
+                if ($opt['create']) {
+                    if ($dp != '') {
+                        $out_list[] = array('element'=>null, 'content'=>file_get_contents($dp),'path'=>$p, 'get_docpath'=>$dp);
+                        if ($opt['output']) {echo($src);}
+                    }
+                }
+            } else {
+                if ($opt['add_date']) {
+                    if ($dp !== '') {
+                        if (\file_exists($dp)) {
+                            $mdate = filemtime($dp);
+                        } else
+                            $mdate = 0;
+                    } else {
+                        $mdate = 0;
+                    }
+                    if ($mdate !== 0) {$src = $src.($ps ? '&' : '?').'v='.$mdate;}
+                }
+                if ($opt['create']) {
+                    switch ($ext) {
+                        case 'css':
+                        $tag = ($tag === '') ? 'link' : $tag;
+                        $rel ='stylesheet';
+                        switch ($tag) {
+                        }
+                        break;
+                        case 'js':
+                        $tag = ($tag === '') ? 'script' : $tag;
+                        switch ($tag) {
+                            case 'script':
+                            $data['src'] = $src;
+                            $data['type'] = 'text/javascript';
+                            break;
+                        }
+                        case 'png': case 'jpg': case 'jpeg': case 'gif': case 'tiff': case 'bmp':
+                        switch ($tag) {
+                            case 'link':
+                            $rel = 'icon'; break;
+                            case '':
+                            $tag = 'img';
+                            default:
+                            break;
+                        }
+                        break;
+                        case 'ico':
+                        $tag = ($tag === '') ? 'link' : $tag;
+                        $rel = 'icon';
+                    }
+                    if (empty($data['rel'])) {
+                        if ($rel !== '') $data['rel'] = $rel;
+                    } else {
+                        $rel = $data['rel'];
+                    }
+                    switch ($tag) {
+                        case 'img':
+                        if (empty($data['alt'])) {
+                            $data['alt'] = $keys[$i];
+                        }
+                        $data['src'] = $src;
+                        break;
+                        case 'link':
+                        switch ($rel) {
+                            case 'stylesheet';
+                            $data['href'] = $src;
+                            $data['type'] = 'text/css';
+                            break;
+                            case 'icon': case 'shortcut icon':
+                            $data['rel'] = 'shortcut icon';
+                            $data['href'] = $src;
+                            if ($ext !== 'ico') {
+                                if (empty($data['type'])) {
+                                    $type = 'image/'.$ext;
+                                    $data['type'] = $type;
+                                } else {
+                                    $type = $data['type'];
+                                }
+                            }
+                            break;
+                        }
+                        break;
+                    }
+                        switch ($tag) {
+                            case 'link': case 'input':
+                            $close_elem = false; $close_slash = false; break;
+                            case 'img':
+                            $close_elem = false; $close_slash = true; break;
+                            default:
+                            $close_elem = true; $close_slash = false; break;
+                        }
+                        $attr = join_attr(' ', '"', $attr, $data);
+                        $char_close_slash = ($close_slash) ? ' /' : '';
+                        $char_close_elem = ($close_elem) ? "</$tag>" : '';
+                        $elm = "<$tag$attr$char_close_slash>$inner$char_close_elem";
+                    if ($opt['output']) echo $elm."\n";
+                    $out_list[] = array('element'=>$elm, 'tag'=>$tag, 'attr'=>$attr, 'content'=>$inner, 'path'=>$p, 'get_docpath'=>$dp);
+                }
+            }
+        }
+    };
+    $local_set($data_list, $default_opt);
+    return $out_list;
 }
 function jsrun($str, $onLoadDelete = false){
     $id = '__aft_delete__';
@@ -605,5 +747,9 @@ function date_until($date = null){
     if (!is_numeric($date))
         $date = strtotime(getval($date, datetostr_default()));
     return strtotime(date("Y-m-d", $date)."+1 day -1 second");
+}
+
+function convert_to_br(string $str){
+    return str_replace("\n", '<br/>', $str);
 }
 ?>
