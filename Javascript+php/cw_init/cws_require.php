@@ -79,4 +79,4 @@ if(isset($cws_debug_mode) && $cws_debug_mode) {
     debug(true);
 }
 /* cws\debug(true); */
-?>`
+?>
