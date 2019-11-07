@@ -74,7 +74,6 @@ function set_autotag(...$data_list){
                 $inner = $title;
             }
         }
-        $attr = $local_set_attr($data, $opt);
 
         $d_value = getref($data, 0, true, '');
         switch ($d_value) {
@@ -100,6 +99,9 @@ function set_autotag(...$data_list){
         $elm = '';
         $src = getref($data, 'src', true, '');
         $inner .= getref($data, 'inner', true, '');
+
+        $attr = $local_set_attr($data, $opt);
+
         $ps = strpos($src, '?');
         $p = $ps ? substr($src, 0, $ps) : $src;
         $dp = get_docpath($p);
@@ -155,8 +157,22 @@ function set_autotag(...$data_list){
                     $rel = 'icon';
                     break;
                     case '':
-                    $inner .= $src;
-                    if ($tag === '') $tag = 'span';
+                    switch ($tag) {
+                        case 'a':;
+                        break;
+                        case '':
+                        $inner .= $src;
+                        if (count($attr) > 0 || $inner !== '') {
+                            $tag = 'span';
+                        }
+                        else {
+                            return;
+                        }
+                        break;
+                        default:
+                        $inner .= $src;
+                        break;
+                    }
                     break;
                     default:
                     $tag = ($tag === '') ? 'a' : $tag;
