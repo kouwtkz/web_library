@@ -35,7 +35,8 @@ class DBI{
     public $db_charset = "utf8mb4"; # 扱うときの文字型です
     public $db_collate = "";    # 照合順序(とりあえず)
     public $pdo = null;         # PDOのコネクトオブジェクト
-    public $flag_bind_param = true;     # TrueならbindParam、FalseならbindValueを使う
+    public $flag_bind_param = false;    # TrueならbindParam、FalseならbindValueを使う
+    # bindValueの方が値は確実に反映されるのでデフォルトでfalse、メモリと確実性の兼ね合い
     static function set_value_after(&$to_value, &$from_value, $after = null, $after_ins = true){
         $to_value = $from_value;
         if ($after_ins) $from_value= $after_ins;
@@ -156,17 +157,26 @@ class DB{
         $this->pdo = null;
         return $this->pdo;
     }
-    static function bind($param, &$sth, $flag_bind_param = true){
+    static function bind($param, &$sth, $flag_bind_param = false){
         foreach ($param as $k => $p) {
             if (is_array($p)) {
                 self::bind($p, $sth, $flag_bind_param);
                 continue;
             }
+            $param_type = \PDO::PARAM_STR;
+            switch (gettype($p)){
+                case 'integer':
+                $param_type = \PDO::PARAM_INT; break;
+                case 'boolean':
+                $param_type = \PDO::PARAM_BOOL; break;
+                case 'NULL': case 'unknown type':
+                $param_type = \PDO::PARAM_NULL; break;
+            }
             if (is_numeric($k)) $k = intval($k) + 1;
             if ($flag_bind_param) {
-                $sth->bindParam($k, $p);
+                $sth->bindParam($k, $p, $param_type);
             } else {
-                $sth->bindValue($k, $p);
+                $sth->bindValue($k, $p, $param_type);
             }
         }
     }
