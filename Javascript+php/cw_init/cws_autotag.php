@@ -23,9 +23,12 @@ function set_autotag(...$data_list){
                 case 'attr': case 'data':
                 $attr = getref($list, $key, true, '');
                 if (is_array($attr)) {
-                    $out_list = array_merge($local_set_attr($attr, true), $out_list);
+                    $out_list += $local_set_attr($attr, $arg_opt, true);
                 } else {
                     if ($key === 'attr') $key = '';
+                    if (is_numeric($key)) {
+                        $key = $var; $attr = '';
+                    }
                     $out_list[$key] = $attr;
                 }
                 ;
@@ -35,6 +38,12 @@ function set_autotag(...$data_list){
                     unset($list[$key]);
                     $var['tag'] = $key;
                     $local_set($var, $arg_opt);
+                } else {
+                    if (is_numeric($key)) {
+                        $out_list[$var] = '';
+                    } else {
+                        $out_list[$key] = $var;
+                    }
                 }
                 break;
             }
@@ -100,7 +109,7 @@ function set_autotag(...$data_list){
         $src = getref($data, 'src', true, '');
         $inner .= getref($data, 'inner', true, '');
 
-        $attr = $local_set_attr($data, $opt);
+        $data += $local_set_attr($data, $opt);
 
         $ps = strpos($src, '?');
         $p = $ps ? substr($src, 0, $ps) : $src;
@@ -162,7 +171,7 @@ function set_autotag(...$data_list){
                         break;
                         case '':
                         $inner .= $src;
-                        if (count($attr) > 0 || $inner !== '') {
+                        if (count($data) > 0 || $inner !== '') {
                             $tag = 'span';
                         }
                         else {
@@ -221,7 +230,7 @@ function set_autotag(...$data_list){
                     default:
                     $close_elem = true; $close_slash = false; break;
                 }
-                $attr = join_attr(' ', '"', $attr, $data);
+                $attr = join_attr(' ', '"', $data);
                 if ($attr !== '') $attr = " $attr";
                 $char_close_slash = ($close_slash) ? ' /' : '';
                 $char_close_elem = ($close_elem) ? "</$tag>" : '';
