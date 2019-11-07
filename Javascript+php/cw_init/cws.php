@@ -218,6 +218,8 @@ function join_attr(string $separator, string $bracket, ...$query){
                     $char_array[] = $v;
                 } elseif($v === '') {
                     if ($k !== '') $char_array[] = $k;
+                } elseif($k === '') {
+                    $char_array[] = $v;
                 } else {
                     $char_array[] = $k.'='.$bracket.$v.$bracket;
                 }

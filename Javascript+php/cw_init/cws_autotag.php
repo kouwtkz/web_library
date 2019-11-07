@@ -1,15 +1,49 @@
 <?php
 namespace cws;
-# 自動タグ付け命令、頻繁に変えるため分離した、自分でも設定できるようにした
+# 自動タグ付け命令、頻繁に変えるため分離した
 $cws_autotag_enable = true;
+include_once('cws.php');
 
 // 更新日を付与してhtmlの出力(改_20191107)
 function set_autotag(...$data_list){
+    $local_set = null;
     $index_array = function($var) { return \is_numeric($var) && $var >= 0; };
     $not_index_array = function($var) { return !\is_numeric($var); };
+    $local_set_attr = function (&$list, $arg_opt, $all_attr = false) 
+    use (&$local_set, &$local_set_attr) {
+        $out_list = array();
+        foreach ($list as $key => $var) {
+            $key_switch = $key;
+            if ($all_attr) {
+                $key_switch = 'attr';
+            } else {
+                if (is_numeric($key)) continue;
+            }
+            switch($key_switch) {
+                case 'attr': case 'data':
+                $attr = getref($list, $key, true, '');
+                if (is_array($attr)) {
+                    $out_list = array_merge($local_set_attr($attr, true), $out_list);
+                } else {
+                    if ($key === 'attr') $key = '';
+                    $out_list[$key] = $attr;
+                }
+                ;
+                break;
+                default:
+                if (is_array($var)) {
+                    unset($list[$key]);
+                    $var['tag'] = $key;
+                    $local_set($var, $arg_opt);
+                }
+                break;
+            }
+        }
+        return $out_list;
+    };
     $out_list = array();
     $default_opt = array('write_text'=>true, 'create'=>true, 'output'=>true, 'add_date'=>true);
-    $local_set = function ($data_list, $arg_opt) use (&$local_set, &$out_list, $index_array, $not_index_array) {
+    $local_set = function ($data_list, $arg_opt) use (&$local_set, &$out_list, &$index_array, &$not_index_array, &$local_set_attr) {
         $data_type = gettype($data_list);
         if ($data_type === 'array') {
             $lopt = getref($data_list, -1, true, array());
@@ -40,6 +74,8 @@ function set_autotag(...$data_list){
                 $inner = $title;
             }
         }
+        $attr = $local_set_attr($data, $opt);
+
         $d_value = getref($data, 0, true, '');
         switch ($d_value) {
             case 'viewport-w':
@@ -63,7 +99,6 @@ function set_autotag(...$data_list){
         $type = '';
         $elm = '';
         $src = getref($data, 'src', true, '');
-        $attr = getref($data, 'attr', true, '');
         $inner .= getref($data, 'inner', true, '');
         $ps = strpos($src, '?');
         $p = $ps ? substr($src, 0, $ps) : $src;
@@ -118,9 +153,10 @@ function set_autotag(...$data_list){
                     case 'ico':
                     $tag = ($tag === '') ? 'link' : $tag;
                     $rel = 'icon';
+                    break;
                     case '':
                     $inner .= $src;
-                    if ($tag === '') $tag = 'div';
+                    if ($tag === '') $tag = 'span';
                     break;
                     default:
                     $tag = ($tag === '') ? 'a' : $tag;
@@ -170,6 +206,7 @@ function set_autotag(...$data_list){
                     $close_elem = true; $close_slash = false; break;
                 }
                 $attr = join_attr(' ', '"', $attr, $data);
+                if ($attr !== '') $attr = " $attr";
                 $char_close_slash = ($close_slash) ? ' /' : '';
                 $char_close_elem = ($close_elem) ? "</$tag>" : '';
                 $elm = "<$tag$attr$char_close_slash>$inner$char_close_elem";
