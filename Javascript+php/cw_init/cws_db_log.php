@@ -1,6 +1,6 @@
 <?php
 namespace cws;
-function cws_db_set_log(DB $instance){
+function cws_db_set_log(DB $instance, $ignore_mode = false){
     $dbi = $instance->dbi;
     $pdo = $dbi->pdo;
     $addr = $_SERVER["REMOTE_ADDR"];

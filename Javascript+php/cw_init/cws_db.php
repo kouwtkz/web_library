@@ -191,7 +191,7 @@ class DB{
             if ($dbi->cookie_use && !isset($_SESSION)) { session_start(); }
             if ($dbi->flag_log) {
                 include_once('cws_db_log.php');
-                cws_db_set_log($this);
+                cws_db_set_log($this, $ignore_mode);
             }
         }
         if ($ignore_mode) {
