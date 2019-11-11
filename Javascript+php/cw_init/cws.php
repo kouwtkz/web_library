@@ -9,6 +9,7 @@ namespace cws;
 // $cws_debug_mode = true;
 if(!isset($cws_require_enable) || !$cws_require_enable) include_once('cws_require.php');
 if(!isset($cws_autotag_enable) || !$cws_autotag_enable) include_once('cws_autotag.php');
+if(!isset($cws_sethead_enable) || !$cws_sethead_enable) include_once('cws_sethead.php');
 
 class server{
     function __construct($thisfile = __FILE__){
@@ -98,40 +99,6 @@ function set_headfile(string $path_or_name = '', string $filename = '', $downloa
         header('Content-Disposition: '.$download.$name.$filename);
         if ($path_or_name !== '') {readfile($path_or_name);}
     }
-}
-function set_headtype($opt = 1, $charset='utf-8') {
-    switch (mb_strtolower($opt)) {
-    case '1': case 'text': case 'txt': case 'conf': case 'plane': case 'php': case 'cgi': case 'py':
-        $headstr = 'text/plane; charset='.$charset; break;
-    case '2': case 'json':
-        $headstr = 'application/json; charset='.$charset; break;
-    case '3': case 'script': case 'javascript':
-        $headstr = 'text/javascript; charset='.$charset; break;
-    case '4': case 'css':
-        $headstr = 'text/css; charset='.$charset; break;
-    case '5': case 'html': case 'htm':
-        $headstr = 'text/html; charset='.$charset; break;
-    case '6': case 'pdf':
-        $headstr = 'application/pdf'; break;
-    case '8': case 'image': case 'png': case 'apng':
-        $headstr = 'image/png'; break;
-    case '9': case 'jpeg': case 'jpg':
-        $headstr = 'image/jpeg'; break;
-    case '10': case 'gif':
-        $headstr = 'image/gif'; break;
-    case '11': case 'svg':
-        $headstr = 'image/svg+xml'; break;
-    case '16': case 'audio': case 'mp3': case 'aac': case 'm4a':
-        $headstr = 'audio/*'; break;
-    case '17': case 'video': case 'movie': case 'mov': case 'mp4': case 'ani':
-        $headstr = 'video/*'; break;
-    case '18': case 'ogg':
-        $headstr = 'application/ogg'; break;
-    case '20': case 'wav':
-        $headstr = 'audio/wav'; break;
-    default: $headstr = 'application/octet-stream'; break;
-    }
-    if ($headstr!==null) {header('Content-Type: '.$headstr);}
 }
 
 // 存在しない場合は標準の場合はnullを返す
@@ -320,6 +287,7 @@ function json_read($target, $assoc = false, $force_json = false)
     }
     return $out;
 }
+// 配列などをJSON文字列化する
 function json_stringfy($json, $pretty = false)
 {
     $write = "";
@@ -337,6 +305,9 @@ function json_stringfy($json, $pretty = false)
     } catch (\Exception $e) {}
     return $write;
 }
+// 配列などをJSON文字列化して出力する
+function set_json_stringfy ($json, $pretty = false) { echo json_stringfy($json, $pretty); }
+
 class hook_class {
     function __construct($value = '', $mode = '', $mode_not = false, $mode_tag = false, $regex = false){
         $this->value = $value;

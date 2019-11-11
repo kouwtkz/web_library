@@ -604,12 +604,11 @@ cws.to.strtotime = function(time){
     time.setHours(time.getHours() + hour, time.getMinutes() + minute, time.getSeconds() + second);
     return time;
 }
-// 後はonbusyの仕組みだけ、明日帰ってからでおｋ
 cws.ajax = {};
-cws.ajax.onload = function(){};
-cws.ajax.onerror = function(){};
-cws.ajax.onbusy = function(){};
-cws.ajax.oncatch = function(){};
+cws.ajax.onload = function(x, e){ console.log(e); };
+cws.ajax.onerror = function(x, e){ console.log('error'); console.log(e); };
+cws.ajax.onbusy = function(x, e){ console.log(e); };
+cws.ajax.oncatch = function(x, e){ console.log('javascript error'); console.log(e); };
 cws.ajax.id_stock = {};
 cws.ajax.result = {};
 // // argsの引数は主に"action", "request", "onload", "onerror", "onbusy"
@@ -625,7 +624,8 @@ cws.ajax.run = function(args) {
             if (typeof(cws.ajax.id_stock[id]) === 'undefined') {
                 cws.ajax.id_stock[id] = true;
             } else {
-                cws.check.key(args, 'onbusy', cws.ajax.onbusy)(args);
+                var f_onbusy = cws.check.key(args, 'onbusy', cws.ajax.onbusy);
+                if (typeof(f_onbusy) === "function") { f_onbusy(args); }
                 return false;
             }
         }
@@ -697,10 +697,9 @@ cws.ajax.run = function(args) {
                 conmode: true,
             }
             if (lxr.status == 200 || lxr.status == 304) {
-                onload(lxr.response, lxr);
-                console.log(lxr.response);
+                if (typeof(onload) === "function") { onload(lxr.response, lxr); }
             } else {
-                onerror(lxr.response, lxr);
+                if (typeof(onerror) === "function") { onerror(lxr.response, lxr); }
             }
         }
         if (ansynch) {
@@ -714,11 +713,7 @@ cws.ajax.run = function(args) {
         return true;
     } catch(e) {
         delete cws.ajax.id_stock[id];
-        if (typeof(cws.ajax.oncatch) !== "function") {
-            console.log(e);
-        } else {
-            cws.ajax.oncatch(e);
-        }
+        if (typeof(cws.ajax.oncatch) === "function") { cws.ajax.oncatch(e); }
         return false;
     }
 }
@@ -783,6 +778,8 @@ cws.cookie.get = function(key = null) {
 function obj2array(obj){
     return Object.keys(obj).map(function (key) {return obj[key]});
 }
+cws.dom = {};
+cws.dom.removeChildren = function(elm){ while( elm.firstChild ){ elm.removeChild( elm.firstChild ); } }
 cws.v.global_init = function() {
     if (typeof(cws_cookie_use) === 'boolean') cws.cookie_use = cws_cookie_use;
 }
