@@ -761,11 +761,9 @@ cws.cookie.out = function(key, value, time) {
 cws.cookie.remove = function(key) {
     return cws.cookie.out(key, null);
 }
-cws.cookie.get = function(key = null) {
+cws.cookie.get = function(key) {
     key = cws.check.def(key, null);
-    if (key === null) {
-        return document.cookie;
-    }
+    if (key === null) { return document.cookie; }
     var cookie = ' ' + document.cookie + ';';
     var re_key = new RegExp(' ' + key + '=([^;]+)');
     var m = cookie.match(re_key);
