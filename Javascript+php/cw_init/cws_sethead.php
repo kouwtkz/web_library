@@ -58,4 +58,46 @@ function set_header(...$args) {
     };
     $local_set_header($args);
 }
+function download($dir, $filename){
+    global $cws;
+    // memory check
+    $limitsize = $cws->limitsize;
+    $filesize = filesize($dir.$filename);
+    if ($limitsize < $filesize * 2) {
+        return false;
+    }
+    $data = file_get_contents($dir.$filename);
+    if ($data !== false) {
+        set_headfile($dir, $filename);
+        echo($data);
+        return true;
+    } else {
+        return false;
+    }
+}
+function set_headfile(string $path_or_name = '', string $filename = '', $download = false) {
+    $path_or_name = get_docpath($path_or_name);
+    if ($path_or_name==='') {$download = '';}
+    $name = '';
+    switch(gettype($download)){
+        case 'boolean':
+            if ($download) {
+                $download = 'attachment';
+            } else {
+                $download = 'inline';
+                if($filename===''){ $filename = basename($path_or_name); }
+                set_header(pathinfo($filename, PATHINFO_EXTENSION));
+            }
+            break;
+        case 'object':
+            $download = 'form-data'; break;
+            if ($path_or_name!=='') {$name = ' ;name="'.$name.'"';}
+        default: $download = '';
+    }
+    if ($filename!=='') {$filename = ' ;filename="'.$filename.'"';}
+    if ($download !== '') {
+        header('Content-Disposition: '.$download.$name.$filename);
+        if ($path_or_name !== '') {readfile($path_or_name);}
+    }
+}
 ?>

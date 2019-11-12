@@ -447,6 +447,7 @@ cws.to.querystr = function(data, urlencoded, no_value_equal, no_name_send){
         for (var i = 0; i < k.length; i++) {
             name = k[i];
             value = cws.check.key(data, name, '');
+            if (value === null) continue;
             if (typeof(value['files']) !== 'undefined') {
                 for (var i = 0; i < value.files.length; i++) {
                     var vv = value.files[i].name;
@@ -456,7 +457,6 @@ cws.to.querystr = function(data, urlencoded, no_value_equal, no_name_send){
                 }
                 value = value.files.length;
             } else {
-                if (value === null) continue;
                 if (no_value_equal || value !== '') value = '=' + value;
                 if (name !== '') obj.push(name + value);
             }
@@ -739,10 +739,11 @@ cws.storage.get = function(key) {
 
 // Cookieの書き出しは制限、読み込みは制限しない
 if (typeof(cws.cookie) === 'undefined') cws.cookie = {};
+cws.cookie.enable = Boolean(cws.check.key(cws.v, 'use_cookie', false));
 cws.cookie.out = function(key, value, time) {
-    value = cws.check.nullvar(value, 0);
+    value = cws.check.def(value, 0);
     time = cws.check.nullvar(time, '');
-    if (cws.var.use_cookie) {
+    if (cws.cookie.enable) {
         var setDate = '';
         if (value === null) {
             value = 0;

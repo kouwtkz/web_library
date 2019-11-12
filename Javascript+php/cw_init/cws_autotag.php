@@ -9,8 +9,9 @@ function set_autotag(...$data_list){
     $local_set = null;
     $index_array = function($var) { return \is_numeric($var) && $var >= 0; };
     $not_index_array = function($var) { return !\is_numeric($var); };
+    $define = array();
     $local_set_attr = function (&$list, $arg_opt, $all_attr = false) 
-    use (&$local_set, &$local_set_attr) {
+    use (&$local_set, &$local_set_attr, &$define) {
         $out_list = array();
         foreach ($list as $key => $var) {
             $key_switch = $key;
@@ -20,46 +21,59 @@ function set_autotag(...$data_list){
                 if (is_numeric($key)) continue;
             }
             switch($key_switch) {
-                case 'attr': case 'data':
-                $attr = getref($list, $key, true, '');
-                if (is_array($attr)) {
-                    $out_list += $local_set_attr($attr, $arg_opt, true);
-                } else {
-                    if ($key === 'attr') $key = '';
-                    if (is_numeric($key)) {
-                        $key = $var; $attr = '';
+                case 'attr': case 'attribute': case 'themes': case 'data-themes':
+                    $attr = get_ref($list, $key, true, '');
+                    if (is_array($attr)) {
+                        $out_list += $local_set_attr($attr, $arg_opt, true, $define_mode);
+                    } else {
+                        if ($key === 'attr') $key = '';
+                        if (is_numeric($key)) {
+                            $key = $var; $attr = '';
+                        }
+                        $out_list[$key] = $attr;
                     }
-                    $out_list[$key] = $attr;
-                }
-                ;
                 break;
                 default:
-                if (is_array($var)) {
-                    unset($list[$key]);
-                    $var['tag'] = $key;
-                    $local_set($var, $arg_opt);
-                } else {
-                    if (is_numeric($key)) {
-                        $out_list[$var] = '';
+                    if (is_array($var)) {
+                        unset($list[$key]);
+                        $var['tag'] = $key;
+                        $local_set($var, $arg_opt);
                     } else {
-                        $out_list[$key] = $var;
+                        if (is_numeric($key)) {
+                            $out_list[$var] = '';
+                        } else {
+                            $out_list[$key] = $var;
+                        }
                     }
-                }
                 break;
             }
         }
         return $out_list;
     };
     $out_list = array();
-    $default_opt = array('write_text'=>true, 'create'=>true, 'output'=>true, 'add_date'=>true);
-    $local_set = function ($data_list, $arg_opt) use (&$local_set, &$out_list, &$index_array, &$not_index_array, &$local_set_attr) {
+    $default_opt = array('write_text'=>true, 'create'=>true, 'output'=>true, 'add_date'=>false);
+    $local_set = function ($data_list, $arg_opt)
+    use (&$local_set, &$out_list, &$index_array, &$not_index_array, &$local_set_attr, &$define) {
         $data_type = gettype($data_list);
         if ($data_type === 'array') {
-            $lopt = getref($data_list, -1, true, array());
+            $lopt = get_ref($data_list, -1, true, array());
             if (gettype($lopt)==='array') {
                 $opt = array_merge($arg_opt, $lopt);
             } else {
                 $opt = $arg_opt;
+            }
+            $def_list = get_ref($data_list, 'define', true, array());
+            if (gettype($def_list)==='array') {
+                $defunction = function(&$data) use (&$defunction, &$define) {
+                    foreach($data as $key => $var) {
+                        if (is_array($var)) {
+                            $defunction($var);
+                        } else {
+                            $define[$key] = $var;
+                        }
+                    }
+                };
+                $defunction($def_list);
             }
             if (count(array_filter($data_list, $not_index_array, ARRAY_FILTER_USE_KEY)) === 0) {
                 foreach(array_filter($data_list, $index_array, ARRAY_FILTER_USE_KEY) as $value) {
@@ -73,48 +87,92 @@ function set_autotag(...$data_list){
             $data = array($data_list);
             $opt = $arg_opt;
         }
+
         $tag = '';
         $inner = '';
         switch (count($data)) {
             case 1:
-            $title = getref($data, 'title', true, false);
+            $title = get_ref($data, 'title', true, false);
             if ($title) {
                 $tag = 'title';
                 $inner = $title;
             }
         }
 
-        $d_value = getref($data, 0, true, '');
+        $d_value = get_ref($data, 0, true, '');
         switch ($d_value) {
             case 'viewport-w':
-            $data['content'] = 'width=device-width,initial-scale=1';
+                $data['content'] = 'width=device-width,initial-scale=1';
             case 'viewport':
-            $tag = 'meta';
-            $data['name'] = 'viewport';
+                $tag = 'meta';
+                $data['name'] = 'viewport';
             break;
             case 'utf-8': case 'charset':
-            $tag = 'meta';
-            $data['charset'] = 'utf-8';
+                $tag = 'meta';
+                $data['charset'] = 'utf-8';
+            break;
+            case 'title':
+                $tag = 'title';
+                $data['inner'] = get_val($define, 'title', '');
+            break;
+            case 'description':
+                $tag = 'meta'; $data['name'] = 'description';
+                $data['content'] = get_val($define, 'description', '');
+            break;
+            case 'og':
+                $title = get_val($define, 'og:title', get_val($define, 'title', ''));
+                $description = get_val($define, 'og:description', get_val($define, 'description', ''));
+                $url = get_val($define, 'og:url', get_val($define, 'url', null));
+                $image = get_val($define, 'og:image', get_val($define, 'image', null));
+                $local_set(array(
+                    array('tag' => 'meta', 'property' => 'og:title', 'content' => $title),
+                    array('tag' => 'meta', 'property' => 'og:description', 'content' => $description),
+                    isset($url) ? array('tag' => 'meta', 'property' => 'og:url', 'content' => get_fullurl($url)) : null,
+                    isset($image) ? array('tag' => 'meta', 'property' => 'og:image', 'content' => get_fullurl($image)) : null,
+                ), $opt);
+                return;
+            break;
+            case 'twitter':
+                $card = get_val($define, 'twitter:card', get_val($define, 'card', 'summary'));
+                $site = get_val($define, 'twitter:site', get_val($define, 'site', ''));
+                $local_set(array(
+                    array('tag' => 'meta', 'property' => 'twitter:card', 'content' => $card),
+                    array('tag' => 'meta', 'property' => 'twitter:site', 'content' => $site),
+                ), $opt);
+                return;
             break;
             case '':
             break;
             default:
-            $data['src'] = $d_value;
+                $data['src'] = $d_value;
             break;
         }
-        $tag = getref($data, 'tag', true, $tag);
+        $tag = get_ref($data, 'tag', true, $tag);
         $rel = '';
         $type = '';
         $elm = '';
-        $src = getref($data, 'src', true, '');
-        $inner .= getref($data, 'inner', true, '');
+        $src = get_ref($data, 'src', true, '');
+        $inner .= get_ref($data, 'inner', true, '');
 
         $data += $local_set_attr($data, $opt);
 
         $ps = strpos($src, '?');
         $p = $ps ? substr($src, 0, $ps) : $src;
         $dp = get_docpath($p);
-        $ext = mb_strtolower(pathinfo($p, PATHINFO_EXTENSION));
+        $ext = get_ref($data, 'ext', true, '');
+        if (empty($ext)) $ext = pathinfo($p, PATHINFO_EXTENSION);
+        $ext = mb_strtolower($ext);
+        // themeデータに切り替わる
+        if (isset($data['data-theme'])) {
+            $theme = $data['data-theme'];
+        } elseif(isset($data['theme'])) {
+            $theme = $data['theme'];
+        }
+        if (!empty($theme)) {
+            if (!empty($src)) $data['src_data'] = $src;
+            if (!empty($data[$theme])) { $src = $data[$theme]; }
+            else { $theme = "data-$theme"; if (!empty($data[$theme])) $src = $data[$theme]; }
+        }
         // txtファイルはテキストデータとして直接返される
         if ($opt['write_text']&&($ext=='txt')) {
             if ($opt['create']) {
@@ -164,6 +222,7 @@ function set_autotag(...$data_list){
                     case 'ico':
                     $tag = ($tag === '') ? 'link' : $tag;
                     $rel = 'icon';
+                    // $src = get_fullurl($src);
                     break;
                     case '':
                     switch ($tag) {

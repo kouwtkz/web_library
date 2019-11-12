@@ -1,7 +1,11 @@
 <?php
 namespace cws;
+$cws_require_enable = true;
+// ini_set('display_errors', "On");
+
 // $cws_jump_to = '/hogehoge';
 // $cws_jump_trigger = '/\/redirect/';
+
 if(!isset($cws_jump_to)) $cws_jump_to = '';
 if(!isset($cws_jump_not_preg)) $cws_jump_not_preg = '';
 if(!isset($cws_jump_trigger)) $cws_jump_trigger = '';
@@ -14,7 +18,6 @@ if (!isset($cws_localhost_preg)) $cws_localhost_preg = '/192\.168|127/';
 $cws_local_mode = preg_match($cws_localhost_preg, $_SERVER['REMOTE_ADDR']);
 
 $cws_auto_preg = '/^([\/\#\~])(.*)([\/\#\~])([smui]?)$/';   
-$cws_require_enable = true;
 
 function server_ireplace(string $str){
     foreach (array(
@@ -37,7 +40,7 @@ function server_ireplace(string $str){
         $_jump_mode = ($cws_jump_to !== '') ? !preg_match($cws_jump_not_preg, $doc) : false;
     }
 })();
-function path_auto_jump(string $path, bool $redirect = true){
+function path_auto_base(string $path = '', bool $redirect = false){
     global $_jump_mode, $cws_jump_trigger, $cws_jump_replace, $cws_jump_not_trigger;
     if ($_jump_mode && ($cws_jump_trigger !== '')) {
         if (preg_match($cws_jump_trigger, $path) && !preg_match($cws_jump_not_trigger, $path) ) {
@@ -46,16 +49,16 @@ function path_auto_jump(string $path, bool $redirect = true){
     }
     return $path;
 }
-function path_auto_doc($path){
+function path_auto_doc(string $path = ''){
     $doc = $_SERVER['DOCUMENT_ROOT'];
-    $path = path_auto_jump($path, false);
+    $path = path_auto_base($path, false);
     if (strpos($path, '/') === 0) {
         $path = $doc.$path;
     }
     return $path;
 }
 // パスの存在チェック、存在しないときは空かパス名のいずれかを返す
-function get_path(string $path, bool $return_blank = true) {
+function get_path(string $path = '', bool $return_blank = true) {
     $docpath = get_docpath($path, true);
     if ($docpath !== '') {
         return $path;
@@ -64,7 +67,7 @@ function get_path(string $path, bool $return_blank = true) {
     }
 }
 // /から始まる相対パスを変換、存在しないときもファイルパスとして出力する）
-function get_docpath(string $path, bool $return_blank = false) {
+function get_docpath(string $path = '', bool $return_blank = false) {
     $path = path_auto_doc($path);
     if ($path !== '' && file_exists($path)) {
         return $path;
