@@ -1,7 +1,7 @@
 if (typeof(cws) === 'undefined') var cws = {};
 // あまりにも使わないのが蓄積しすぎたため、使うもののみ集約しました
 // IEは10以降を対応とする
-cws.vertion = '2.0.0 lite';
+cws.vertion = '2.2.0 lite';
 // 
 cws.check = {};
 cws.check.def = function(args, undefined_var){
@@ -52,6 +52,7 @@ cws.v.use_cookie = false;
 cws.v.date_default = 'Y-m-d';
 cws.v.defaultAnsynch = true;
 cws.v.userAgent = window.navigator.userAgent.toLowerCase();
+cws.v.urlrg = ["!","#","$","&","'","(",")","*","+",",","/",":",";","=","?","@","[","]"];
 cws.v.re = {};
 cws.v.re.time = /\d+[\-\/\:]\d+/;
 
@@ -465,7 +466,9 @@ cws.to.querystr = function(data, urlencoded, no_value_equal, no_name_send){
     } else {
         retvar = (data !== null) ? data.toString() : '';
     }
-    if (urlencoded) retvar = encodeURI(retvar);
+    if (urlencoded) {
+        retvar = encodeURI(retvar.replace(/\%(\d+)/, '?$1?')).replace(/\?(\d+)\?/, '%$1');
+    }
     return retvar;
 }
 cws.to.setQuery = function(array_list, path) {
@@ -554,6 +557,27 @@ cws.to.fullWidth = function(strVal, other_replace){
     } else {
         return fullVal;
     }
+}
+cws.to.asctochar = function(str, decode){
+    str = cws.check.nullvar(str, '').toString();
+    decode = cws.check.nullvar(decode, true);
+    for (var i = 0; i < cws.v.urlrg.length; i++) {
+        var chkstr = new RegExp("\\%"+cws.v.urlrg[i].charCodeAt().toString(16), "g");
+        str = str.replace(chkstr, cws.v.urlrg[i]);
+    }
+    if (decode) str = decodeURI(str);
+    return str;
+}
+cws.to.chartoasc = function(str, encode){
+    str = cws.check.nullvar(str, '').toString();
+    encode = cws.check.nullvar(encode, true);
+    if (encode) str = encodeURI(str);
+    for (var i = 0; i < cws.v.urlrg.length; i++) {
+        var chkstr = new RegExp("\\" + cws.v.urlrg[i], "g");
+        var rplstr = "%"+cws.v.urlrg[i].charCodeAt().toString(16);
+        str = str.replace(chkstr, rplstr);
+    }
+    return str;
 }
 // PHPのstrtotimeの再現
 cws.to.strtotime = function(time){
@@ -720,6 +744,7 @@ cws.ajax.run = function(args) {
 
 cws.storage = {};
 cws.storage.out = function(key, value) {
+    key = cws.check.nullvar(key, 'key');
     value = cws.check.def(value, null);
     var storage = sessionStorage;
     storage.removeItem(key);
@@ -730,19 +755,24 @@ cws.storage.out = function(key, value) {
 cws.storage.remove = function(key) {
     cws.storage.out(key);
 }
-cws.storage.get = function(key) {
+cws.storage.get = function(key, remove_flag) {
+    key = cws.check.nullvar(key, 'key');
+    remove_flag = cws.check.nullvar(remove_flag, false);
     var storage = sessionStorage;
     var getstr = storage[key];
-    if (typeof(getstr) === "undefined") getstr = "";
+    var do_remove = remove_flag
+    if (typeof(getstr) === 'undefined') getstr = "";
+    if (remove_flag) cws.storage.remove(key);
     return getstr;
 }
 
 // Cookieの書き出しは制限、読み込みは制限しない
 if (typeof(cws.cookie) === 'undefined') cws.cookie = {};
 cws.cookie.enable = Boolean(cws.check.key(cws.v, 'use_cookie', false));
-cws.cookie.out = function(key, value, time) {
+cws.cookie.out = function(key, value, time, path) {
     value = cws.check.def(value, 0);
     time = cws.check.nullvar(time, '');
+    path = cws.check.nullvar(path, '');
     if (cws.cookie.enable) {
         var setDate = '';
         if (value === null) {
@@ -755,7 +785,12 @@ cws.cookie.out = function(key, value, time) {
         } else {
             setDate = ';expires=' + cws.to.strtotime(time).toGMTString();
         }
-        document.cookie = key + '=' + value + setDate;
+        if (path === null || path === '') {
+            setPath = '';
+        } else {
+            setPath = ';path=' + path;
+        }
+        document.cookie = key + '=' + value + setDate + setPath;
         return document.cookie;
     }
 }
@@ -782,3 +817,14 @@ cws.dom.removeChildren = function(elm){ while( elm.firstChild ){ elm.removeChild
 cws.v.global_init = function() {
     if (typeof(cws_cookie_use) === 'boolean') cws.cookie_use = cws_cookie_use;
 }
+cws.jump = {};
+cws.jump.location = function(href, auto_back) {
+    href = cws.check.nullvar(href, location.href);
+    auto_back = cws.check.nullvar(auto_back, false);
+    if (auto_back && window.location.href !== href
+        && window.document.referrer === href) {
+        window.history.back();
+    } else {
+        window.location.href = href;
+    }
+};
