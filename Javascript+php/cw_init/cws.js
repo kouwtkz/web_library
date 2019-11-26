@@ -52,7 +52,7 @@ cws.v.use_cookie = false;
 cws.v.date_default = 'Y-m-d';
 cws.v.defaultAnsynch = true;
 cws.v.userAgent = window.navigator.userAgent.toLowerCase();
-cws.v.urlrg = ["!","#","$","&","'","(",")","*","+",",","/",":",";","=","?","@","[","]"];
+cws.v.urlrg = ["!","#","$","&","'","(",")","*",",","/",":",";","=","?","@","[","]"];
 cws.v.re = {};
 cws.v.re.time = /\d+[\-\/\:]\d+/;
 
@@ -560,7 +560,8 @@ cws.to.fullWidth = function(strVal, other_replace){
 }
 cws.to.asctochar = function(str, decode){
     str = cws.check.nullvar(str, '').toString();
-    decode = cws.check.nullvar(decode, true);
+    decode = cws.check.nullvar(decode, false);
+    str = str.replace('+', ' ');
     for (var i = 0; i < cws.v.urlrg.length; i++) {
         var chkstr = new RegExp("\\%"+cws.v.urlrg[i].charCodeAt().toString(16), "g");
         str = str.replace(chkstr, cws.v.urlrg[i]);
@@ -570,7 +571,8 @@ cws.to.asctochar = function(str, decode){
 }
 cws.to.chartoasc = function(str, encode){
     str = cws.check.nullvar(str, '').toString();
-    encode = cws.check.nullvar(encode, true);
+    encode = cws.check.nullvar(encode, false);
+    str = str.replace(' ', '+');
     if (encode) str = encodeURI(str);
     for (var i = 0; i < cws.v.urlrg.length; i++) {
         var chkstr = new RegExp("\\" + cws.v.urlrg[i], "g");

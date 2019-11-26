@@ -37,6 +37,8 @@ class server{
         $t->prefix_l_list = array(
             "K" => 1, "M" => 2, "G" => 3, "T" => 4, "P" => 5
         );
+        $t->url_pattern = '/((?:https?|ftp):\/\/\S+)/';
+        $t->url_rg = ["!","#","$","&","'","(",")","*",",","/",":",";","=","?","@","[","]"," "];
         $limit = mb_strtoupper(ini_get('memory_limit'));
         preg_match("/(\d*)([A-Z])/", $limit, $m);
         $t->limitsize = $m[1] * pow(1024, get_val($t->prefix_l_list[$m[2]], 0));
@@ -62,21 +64,6 @@ function get_dir(string $url){
     preg_match('/^.*\//', $base[0], $base);
     return (count($base)===0)?"":preg_replace('/\/+$/','/',$base[0]);
 }
-function get_fullurl(string $path = ''){
-    global $cws;
-    $parse = \parse_url($path);
-    if (empty($parse['host'])) {
-        $path = $parse['path'];
-        if (strpos($path, '/') === 0) {
-            $dir = $cws->basehost;
-        } else {
-            $dir = $cws->url_dir;
-        }
-        $path = $dir.$path;
-    }
-    return $path;
-}
-
 // 存在しない場合は標準の場合はnullを返す
 function get_val($val_or_array, $key_or_nullval = null, $nullval = null) {
     if (is_array($val_or_array)){
@@ -308,5 +295,120 @@ function date_until($date = null){
 }
 function convert_to_br(string $str){
     return str_replace("\n", '<br/>', $str);
+}
+// parse_urlのhost側を組み立てる
+function join_parsed_host($parsed_url) {
+    return (isset($parsed_url['scheme']) ? $parsed_url['scheme'].'://' : '')
+    .(isset($parsed_url['user']) ? $parsed_url['user'].(
+        (isset($parsed_url['pass']) ? ':'.$parsed_url['pass'] : '')
+    ).'@' : '')
+    .(isset($parsed_url['host']) ? $parsed_url['host'] : '')
+    .(isset($parsed_url['port']) ? ':'.$parsed_url['port'] : '');
+}
+// parse_urlのpath側を組み立てる
+function join_parsed_path($parsed_url) {
+    return (isset($parsed_url['path']) ? '/'.$parsed_url['path'] : '')
+    .(isset($parsed_url['query']) ? '?'.$parsed_url['query'] : '')
+    .(isset($parsed_url['fragment']) ? '#'.$parsed_url['fragment'] : '');
+}
+function get_fullurl(string $path = '', &$internal = false){
+    global $cws;
+    $parse = \parse_url($path);
+    if (empty($parse['host'])) {
+        if (isset($parse['path'])) {
+            $path = $parse['path'];
+            if (strpos($path, '/') === 0) {
+                $dir = $cws->basehost;
+            } else {
+                $dir = $cws->url_dir;
+            }
+        } else {
+            $dir = $cws->url;
+        }
+        $path = join_parsed_path($parse);
+        if (substr($dir, -1) === '/') $dir = substr($dir, 0, strlen($dir) - 1);
+        $path = $dir.$path;
+        $internal = true;
+    }
+    return $path;
+}
+// 自動リンク、はてな記法に合わせていますが、:title;targetという仕様にしています
+function convert_to_link(string $str, string $target = '__default__'){
+    global $cws;
+    $title = '';
+    $internal = false;
+    $attr_lock = false;
+    $set_link = function($m) use (&$target, &$title, &$attr_lock, &$internal){
+        if ($attr_lock) {
+            $attr_lock = false;
+        } else {
+            $target = '__default__';
+            $title = '';
+        }
+        if ($target === '__default__') {
+            if($internal) { $target = ''; } else { $target = '_blank'; }
+        }
+        if ($target === '_blank') { $relno = ' rel="noopener noreferrer"'; } else { $relno = ''; }
+        if ($target !== '') $target = ' target="'.$target.'"';
+    
+        $str = str_replace('%20', ' ', $m[1]);
+        if ($title === '') $title = $str;
+        return '<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>';
+    };
+    $str = preg_replace_callback($cws->url_pattern, $set_link, $str);
+    $str = preg_replace_callback('/\[(.*)\]/', function($m) use (&$cws, &$internal, &$set_link, &$attr_lock, &$target, &$title) {
+        $parses = parse_url($m[1]);
+        $p_path = join_parsed_path($parses);
+        if (preg_match('/(.*)\:([^\;\]]*)(\;?)([^\]]*)/', $p_path, $mp)) {
+            $path = $mp[1];
+            $title = $mp[2] === '' ? $mp[1] : $mp[2];
+            if ($target === '__default__') {
+                if ($mp[3] !== '') { $target = $mp[4]; }
+            }
+        } else {
+            $path = $m[1];
+        }
+        $str = get_fullurl(str_replace(' ', '%20', $path), $internal);
+        $attr_lock = true;
+        $str = preg_replace_callback($cws->url_pattern, $set_link, $str);
+        return $str;
+    }, $str);
+    return $str;
+}
+function asc_to_char(string $str, bool $decode = false){
+    global $cws;
+    $str = str_replace('+', ' ', $str);
+    foreach ($cws->url_rg as $rg) {
+        $pattern = '%'.dechex(ord($rg));
+        $str = str_ireplace($pattern, $rg, $str);
+    }
+    if ($decode) $str = urldecode($str);
+    return $str;
+}
+function char_to_asc(string $str, bool $encode = false){
+    global $cws;
+    $str = str_replace(' ', '+', $str);
+    if ($encode) $str = urlencode($str);
+    foreach ($cws->url_rg as $rg) {
+        $pattern = $rg;
+        $rpl = '%'.dechex(ord($rg));
+        $str = str_replace($pattern, $rpl, $str);
+    }
+    return $str;
+}
+// URLエンコード→予約文字のみデコード
+function char_to_asc2(string $str){
+    $str = asc_to_char(urlencode($str));
+    return $str;
+}
+function convert_to_href_decode(string $str){
+    global $cws;
+    $callback_quat = function($m){
+        $str = $m[1].char_to_asc2($m[2]).$m[3];
+        return $str;
+    };
+    $str = preg_replace_callback('/(href.*\=.*\')(.*)(\')/', $callback_quat, $str);
+    $str = preg_replace_callback('/(href.*\=.*\")(.*)(\")/', $callback_quat, $str);
+    return $str;
 }
 ?>
