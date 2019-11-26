@@ -6,6 +6,7 @@ include_once('cws.php');
 
 // 更新日を付与してhtmlの出力(改_20191107)
 function set_autotag(...$data_list){
+    $default_opt = array('text_style'=>false, 'text_write'=>true, 'create'=>true, 'output'=>true, 'add_date'=>false);
     $local_set = null;
     $index_array = function($var) { return \is_numeric($var) && $var >= 0; };
     $not_index_array = function($var) { return !\is_numeric($var); };
@@ -51,7 +52,6 @@ function set_autotag(...$data_list){
         return $out_list;
     };
     $out_list = array();
-    $default_opt = array('write_text'=>true, 'create'=>true, 'output'=>true, 'add_date'=>false);
     $local_set = function ($data_list, $arg_opt)
     use (&$local_set, &$out_list, &$index_array, &$not_index_array, &$local_set_attr, &$define) {
         $data_type = gettype($data_list);
@@ -173,16 +173,33 @@ function set_autotag(...$data_list){
             if (!empty($data[$theme])) { $src = $data[$theme]; }
             else { $theme = "data-$theme"; if (!empty($data[$theme])) $src = $data[$theme]; }
         }
+        $direct = false;
         // txtファイルはテキストデータとして直接返される
-        if ($opt['write_text']&&($ext=='txt')) {
-            if ($opt['create']) {
-                if ($dp != '') {
-                    $out_list[] = array('element'=>null, 'content'=>file_get_contents($dp),'path'=>$p, 'get_docpath'=>$dp);
-                    if ($opt['output']) {echo($src);}
+        if ($opt['text_write']) {
+            $fl_txt = false; $fl_br = false;
+            if ($ext==='txt') {
+                $fl_txt = true;
+                $direct = true;
+                $element = null;
+            } elseif ($opt['text_style']) {
+                $fl_br = true;
+                if ($ext==='js') {
+                    $fl_txt = true; $tag = 'script'; $src = '';
+                } elseif ($ext==='css') {
+                    $fl_txt = true; $tag = 'style'; $src = '';
                 }
             }
+            if ($fl_txt && $opt['create'] && $dp !== '') {
+                $content = file_get_contents($dp);
+                if ($fl_br) $content = "\n$content\n";
+                $inner .= $content;
+            }
+        }
+        if ($direct) {
+            $out_list[] = array('element'=>$element, 'content'=>$inner,'path'=>$p, 'get_docpath'=>$dp);
+            if ($opt['output']) { echo($inner); }
         } else {
-            if ($opt['add_date']) {
+            if (!empty($src) && $opt['add_date']) {
                 if ($dp !== '') {
                     if (\file_exists($dp)) {
                         $mdate = filemtime($dp);
@@ -205,8 +222,8 @@ function set_autotag(...$data_list){
                     $tag = ($tag === '') ? 'script' : $tag;
                     switch ($tag) {
                         case 'script':
-                        $data['src'] = $src;
-                        $data['type'] = 'text/javascript';
+                            if (!empty($src)) $data['src'] = $src;
+                            $data['type'] = 'text/javascript';
                         break;
                     }
                     case 'png': case 'jpg': case 'jpeg': case 'gif': case 'tiff': case 'bmp':
