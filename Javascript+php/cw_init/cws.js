@@ -1,7 +1,7 @@
 if (typeof(cws) === 'undefined') var cws = {};
 // あまりにも使わないのが蓄積しすぎたため、使うもののみ集約しました
 // IEは10以降を対応とする
-cws.vertion = '2.2.0 lite';
+cws.vertion = '2.2.1 lite';
 // 
 cws.check = {};
 cws.check.def = function(args, undefined_var){
@@ -467,7 +467,7 @@ cws.to.querystr = function(data, urlencoded, no_value_equal, no_name_send){
         retvar = (data !== null) ? data.toString() : '';
     }
     if (urlencoded) {
-        retvar = encodeURI(retvar.replace(/\%(\d+)/, '?$1?')).replace(/\?(\d+)\?/, '%$1');
+        retvar = encodeURI(retvar.replace(/\%(\d+)/g, '?$1?')).replace(/\?(\d+)\?/g, '%$1');
     }
     return retvar;
 }

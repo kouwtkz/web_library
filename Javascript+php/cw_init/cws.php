@@ -172,7 +172,9 @@ function join_attr(string $separator, string $bracket, ...$query){
     $local_join($query, true);
     return implode($separator, $char_array);
 }
-
+function join_query(...$query){
+    return join_attr('', '&', $query);
+}
 function jsrun($str, $onLoadDelete = false){
     $id = '__aft_delete__';
     $idelm = $onLoadDelete?' id="'.$id.'"':'';
