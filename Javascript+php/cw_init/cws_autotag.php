@@ -319,4 +319,337 @@ function set_autotag(...$data_list){
     $local_set($data_list, $default_opt);
     return $out_list;
 }
+
+function get_request($q = null, $r_default = 'q'){
+    if ($q === null){
+        $q = isset($_REQUEST[$r_default]) ? $_REQUEST[$r_default] : '';
+    } elseif (\is_array($q)) {
+        $cnt = count($q);
+        if ($cnt > 0) {
+            $cur = current($q);
+            if (\is_array($cur)) {
+                $next = next($q);
+                $q = isset($cur[$next]) ? $cur[$next] : '';
+            } else {
+                $cur = current($q);
+                $q = isset($_REQUEST[$cur]) ? $_REQUEST[$cur] : '';
+            }
+        } else {
+            $q = isset($_REQUEST[$r_default]) ? $_REQUEST[$r_default] : '';
+        }
+    }
+    return $q;
+}
+function convert_to_br(string $str){
+    return str_replace("\n", '<br/>', $str);
+}
+// parse_urlのhost側を組み立てる
+function join_parsed_host($parsed_url) {
+    return (isset($parsed_url['scheme']) ? $parsed_url['scheme'].'://' : '')
+    .(isset($parsed_url['user']) ? $parsed_url['user'].(
+        (isset($parsed_url['pass']) ? ':'.$parsed_url['pass'] : '')
+    ).'@' : '')
+    .(isset($parsed_url['host']) ? $parsed_url['host'] : '')
+    .(isset($parsed_url['port']) ? ':'.$parsed_url['port'] : '');
+}
+// parse_urlのpath側を組み立てる
+function join_parsed_path($parsed_url) {
+    return (isset($parsed_url['path']) ? $parsed_url['path'] : '')
+    .(isset($parsed_url['query']) ? '?'.$parsed_url['query'] : '')
+    .(isset($parsed_url['fragment']) ? '#'.$parsed_url['fragment'] : '');
+}
+function get_fullurl(string $path = '', &$internal = false){
+    global $cws;
+    $parse = \parse_url($path);
+    if (empty($parse['host'])) {
+        if (isset($parse['path'])) {
+            $path = $parse['path'];
+            if (strpos($path, '/') === 0) {
+                $dir = $cws->basehost;
+            } else {
+                $dir = $cws->url_dir;
+            }
+        } else {
+            $dir = $cws->url;
+        }
+        $path = join_parsed_path($parse);
+        if (substr($dir, -1) === '/') $dir = substr($dir, 0, strlen($dir) - 1);
+        $path = $dir.$path;
+        $internal = true;
+    }
+    return $path;
+}
+function asc_to_char(string $str, bool $decode = false){
+    global $cws;
+    $str = str_replace('+', ' ', $str);
+    foreach ($cws->url_rg as $rg) {
+        $pattern = '%'.dechex(ord($rg));
+        $str = str_ireplace($pattern, $rg, $str);
+    }
+    if ($decode) $str = urldecode($str);
+    return $str;
+}
+function char_to_asc(string $str, bool $encode = false){
+    global $cws;
+    $str = str_replace(' ', '+', $str);
+    if ($encode) $str = urlencode($str);
+    foreach ($cws->url_rg as $rg) {
+        $pattern = $rg;
+        $rpl = '%'.dechex(ord($rg));
+        $str = str_replace($pattern, $rpl, $str);
+    }
+    return $str;
+}
+// URLエンコード→予約文字のみデコード
+function char_to_asc2(string $str){
+    $str = asc_to_char(urlencode($str));
+    return $str;
+}
+function convert_to_href_decode(string $str){
+    global $cws;
+    $callback_quat = function($m){
+        $str = $m[1].char_to_asc2($m[2]).$m[3];
+        return $str;
+    };
+    $str = preg_replace_callback('/(href.*\=.*\')(.*)(\')/', $callback_quat, $str);
+    $str = preg_replace_callback('/(href.*\=.*\")(.*)(\")/', $callback_quat, $str);
+    return $str;
+}
+function tagesc_re($value) {
+    if (empty($value)) return '//';
+    $_q_f = substr($value, 0, 1);
+    $_q_s = \addslashes($value);
+    $_q_s_f = \addslashes($_q_f);
+    if ($_q_f === '#') {
+        $ret = '/(\s)('.$_q_s.')([\s#\<])/';
+    } else {
+        $ret = '/(.*?)('.$_q_s.')/';
+    }
+    return $ret;
+}
+function tagesc_callback($search_re, $text, ...$loop_func) {
+    return __tagesc_callback($search_re, $text, $loop_func);
+}
+function __tagesc_callback($search_re, $text, $loop_func = null, &$linkable = false) {
+    $recall = is_array($loop_func);
+    $tag_char = '';
+    if (!$recall && is_null($loop_func)) {
+        $loop_func = function($m, $text){ return $text; };
+    } elseif ($recall) {
+        // var_dump($text);
+    }
+    if (empty($search_re)) $search_re = tagesc_re($search_re);
+    $callback_tagesc = function($m) use (&$tag_char, &$loop_func, $search_re, $recall, &$linkable) {
+        preg_match_all('/([^\<\>]*)(\\\\)?([\<\>]?)/',$m[0], $m1);
+        $text = '';
+        $cur = 0;
+        for ($i = 0; $i < count($m1[0]); $i++) {
+            $str = $m1[1][$i];
+            $esc = $m1[2][$i];
+            $check = $m1[3][$i];
+            if ($tag_char === '') {
+                if ($esc === '') {
+                    $cur = $i; $tag_char = $check;
+                    if (preg_match('/\S/',$str)) {
+                        if ($recall) {
+                            foreach ($loop_func as $func) {
+                                $str = __tagesc_callback($search_re, $str, $func, $linkable);
+                            }
+                            $text .= $str.$esc.$check;
+                        } else {
+                            $text .= $loop_func($m, $str, $linkable).$esc.$check;
+                        }
+                    } else {
+                        $text .= $str.$esc.$check;
+                    }
+                }
+                continue;
+            } elseif ($check === '>') {
+                $tag_check = preg_replace('/^([^\s]*).*$/', '$1', $str);
+                if ($tag_check === 'a') {
+                    $linkable = true;
+                } elseif ($tag_check === '/a') {
+                    $linkable = false;
+                }
+                if ($tag_char === '<') {
+                    $tag_char = '';
+                }
+            } elseif($tag_char === $check) {
+                if ($m1[1][$i] === '') $tag_char = '';
+            }
+            $text .= $m1[0][$i];
+        }
+        return $text;
+    };
+    $text = preg_replace_callback($search_re, $callback_tagesc, $text);
+    return $text;
+}
+// ハッシュタグの自動リンクとはてな記法の自動リンクとハイライトの自動付与
+// ここで無名関数を後で入れることでループが完成する
+// add_taglink($arr, $_REQUEST['q']);
+function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array()){
+    $image_re = '/\.gif$|\.png$|\.jpg$|\.jpeg$|\.bmp$/i';
+    global $callback_tagesc, $cws;
+    if (!\is_array($arr)) $arr = array($arr);
+    $q = get_request($q);
+    if ($loop_func === null) $loop_func = function($text, $var){ \var_dump($var);\var_dump($text); };
+    $_q = !empty($q);
+    $_q_str = $_q ? $q : '';
+    $_q_str_l = (preg_match('/^\s*$/', $_q_str) ? array() : explode(' ', $_q_str));
+    $_q_str_l_f = array_flip($_q_str_l);
+    $_q_str_e = $_q ? urlencode($_q_str) : '';
+    $_q_join = '?q=' . ($_q ? $_q_str_e.' ' : '');
+    $_q_str_l_s = array();
+    $_q_str_l_u = array();
+    if ($_q) foreach($_q_str_l as $value) {
+        $_q_str_l_s[] = tagesc_re($value);
+        $_q_str_l_u[] = urlencode($value);
+    }
+    $callback_search = function ($m, $text) use ($_q, $_q_str_l_s) {
+        $callback_1 = function($m) {
+            $text = $m[0];
+            $m2_1 = substr($m[2], 0, 1);
+            if ($m2_1 !== '#') {
+                switch ($m[2]) {
+                    case 'AND': case 'OR': case 'NOT': case '-':
+                    break;
+                    default:
+                        $text = $m[1].'<span class="highlight">'.$m[2].'</span>';
+                    break;
+                }
+            } else {
+                $inner = substr($m[2], 1);
+                return $m[1].'<a class="tag" href="?q=%23'.$inner.'">['.$inner.']</a>'.$m[3];
+            }
+            return $text;
+        };
+        if ($_q) foreach($_q_str_l_s as $key => $value) {
+            $_q_str_s = $_q_str_l_s[$key];
+            $text = preg_replace_callback($_q_str_s, $callback_1, $text);
+        }
+        return $text;
+    };
+    $title = '';
+    $type = '__default__';
+    $target = '__default__';
+    $set_link = function($m) use (&$target, &$title, &$type, &$internal, &$image_re){
+        $str = $m[1];
+        $host = parse_url($str, PHP_URL_HOST);
+        $internal = (is_null($host)) || ($host === $_SERVER['HTTP_HOST']);
+        if ($type === '__default__') {
+            $type = '';
+            if ($internal) {
+                if (preg_match($image_re, $str)) {
+                    $type = 'image';
+                }
+            }
+        }
+        if ($target === '__default__') {
+            if ($internal) {
+                switch($type) {
+                case 'image':
+                    $target = '_blank';
+                break;
+                default:
+                    $target = '';
+                break;
+                }
+            } else { $target = '_blank'; }
+        }
+        if ($target === '_blank') { $relno = ' rel="noopener noreferrer"'; } else { $relno = ''; }
+        if ($target !== '') $target = ' target="'.$target.'"';
+    
+        if ($title === '') $title = $str;
+        $str = str_replace('%20', ' ', $str);
+
+        switch($type) {
+            case 'image':
+                return '<a href="'.$str.'"'.$target.$relno.'>'.
+                '<img alt="'.$title.'" src="'.$str.'">'.
+                '</a>';
+            break;
+            default:
+                return '<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>';
+            break;
+        }
+        $type = '__default__'; $target = '__default__';
+    };
+    $url_pattern = $cws->url_pattern;
+    $callback_url = function($m, $text) use (&$url_pattern, &$set_link) {
+        $text = preg_replace_callback($url_pattern, function($m) use (&$url_pattern, &$set_link){
+            $text =  preg_replace_callback($url_pattern, $set_link, $m[0]);
+            return $text;
+        }, $text);
+        return $text;
+    };
+    $hatena_re = '/\[([^\[\]]+)\]/';
+    $callback_hatena = function($m, $text, $linkable = false)
+     use ($hatena_re, &$set_link, &$title, &$type, &$target, &$internal, $callback_url) {
+        if ($linkable) {
+            return $m[0];
+        }
+        $text = preg_replace_callback($hatena_re, function($m) use (&$set_link, &$title, &$type, &$target, $callback_url) {
+            $str = $m[1];
+            if (preg_match('/^(.*\:\/\/[^\:\/]*.[^\:]*)(.*)$/', $str, $om)) {
+                $str = $om[1];
+                $t = $om[2];
+            } elseif (preg_match('/^([^\:]*)(.*)$/', $str, $om)) {
+                $str = $om[1];
+                $t = $om[2];
+            } else {
+                $t = $str;
+            }
+            $media_mode = false;
+            $title = '';
+            $type = '';
+            if (preg_match_all('/\:([^\/\:]*)/', $t, $om)) {
+                foreach($om[1] as $value) {
+                    if ($media_mode) {
+                    } else {
+                        switch ($value) {
+                            case 'image': case 'movie':
+                                $media_mode = true;
+                                $type = $value;
+                            break;
+                            default:
+                                if ($title === '') {
+                                    $title = $value;
+                                } else {
+                                    $target = $value;
+                                }
+                            break;
+                        }
+                    }
+                }
+            }
+            $url = str_replace(' ', '%20', $str);
+            $text = $url;
+            if ($text !== '') { $text = $set_link(array('', $text)); }
+            // $text = $left_str.$text;
+            return $text;
+        }, $text);
+        return $text;
+    };
+    $hashtag_re = '/(\s)#([^\s\<#]*)/';
+    $add_symbol = count($_q_str_l_f) !== 0;
+    $callback_tag = function($m, $text) use ($hashtag_re, $_q_join, $_q_str_l_f, $add_symbol) {
+        $text = preg_replace_callback($hashtag_re, function($m) use ($_q_join, $_q_str_l_f, $add_symbol){
+            $tag = $m[2];
+            $tag_hash = '#'.$m[2];
+            $add_flag = $add_symbol && !isset($_q_str_l_f[$tag_hash]);
+            $tag_value = (!$add_symbol || $add_flag) ? $tag_hash : "[$tag]";
+            return $m[1].'<a class="tag" href="?q=%23'.$tag.'">'.$tag_value.'</a>'
+            .($add_flag ? ('<a class="add" href="'.$_q_join.'%23'.$tag.'">＋</a>') : '');
+        }, $text);
+        return $text;
+    };
+    $tag_char = '';
+    foreach($arr as $var) {
+        $text = ' '.convert_to_href_decode($var['text']).' ';
+        $text = tagesc_callback('/.*/', $text, $callback_hatena, $callback_url, $callback_tag, $callback_search);
+        $text = preg_replace('/^\s+|\s+$/', '', $text);
+        $text = convert_to_br($text);
+        $loop_func($text, $var);
+    }
+}
 ?>

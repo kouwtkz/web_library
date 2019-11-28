@@ -113,6 +113,10 @@ cws.get.date = function(format_str, date){
     rp = rp.replace(/W/, [ "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" ][week]);
     return rp;
 }
+cws.get.date_32 = function(date) {
+    date = cws.check.def(date, new Date());
+    return Number(cws.get.date('YmdHis', date)).toString(32);
+}
 cws.get.date_until = function(date){
     date = cws.check.def(date, new Date());
     d_until = new Date(cws.get.date('Y-m-dT00:00:00', date));
@@ -471,6 +475,39 @@ cws.to.querystr = function(data, urlencoded, no_value_equal, no_name_send){
     }
     return retvar;
 }
+cws.to.base64toExt = function(base64) {
+    var m = base64.match(/[\/]([^\;]*)/);
+    var ext = '';
+    if (m) ext = m[1];
+    return ext;
+}
+cws.to.base64toBlob = function(base64, name) {
+    name = cws.check.nullvar(name, '').toString();
+    cws.v.loop_i = cws.check.key(cws.v, 'loop_i', 0);
+    // カンマで分割して以下のようにデータを分ける
+    // tmp[0] : データ形式（data:image/png;base64）
+    // tmp[1] : base64データ（iVBORw0k～）
+    var tmp = base64.split(',');
+    // base64データの文字列をデコード
+    var data = atob(tmp[1]);
+    // tmp[0]の文字列（data:image/png;base64）からコンテンツタイプ（image/png）部分を取得
+    var mime = tmp[0].split(':')[1].split(';')[0];
+    if (!name.match('.')) {
+        var ext = cws.to.base64toExt(mime);
+        if (ext !== '') { ext = '.' + ext; }
+        if (name === '') { name = cws.get.date_32(); }
+        name = name + '_' + (++cws.v.loop_i) + ext;
+    }
+    //  1文字ごとにUTF-16コードを表す 0から65535 の整数を取得
+	var buf = new Uint8Array(data.length);
+	for (var i = 0; i < data.length; i++) {
+        buf[i] = data.charCodeAt(i);
+    }
+    // blobデータを作成
+    var blob = new Blob([buf], { type: mime });
+    blob.name = name;
+    return blob;
+};
 cws.to.setQuery = function(array_list, path) {
     array_list = cws.check.def(array_list, {});
     path = cws.check.def(path, cws.v.href);
@@ -491,7 +528,19 @@ cws.to.form_append = function(request, formdata_obj){
             if (typeof(val) !== 'object') {
                 formdata_obj.append(key, val);
             } else {
-                formdata_obj.append(key, Blob, val.name);
+                var name = cws.check.key(val, 'name', '');
+                var ext = '';
+                var src = cws.check.key(val, 'src', '');
+                var data = null;
+                if (typeof(src) === 'string') {
+                    data = cws.to.base64toBlob(src);
+                    if (name === '') {
+                        name = data.name;
+                    }
+                }  else {
+                    data = src;
+                }
+                formdata_obj.append(key, data, name);
             }
         }
     }
@@ -634,7 +683,7 @@ cws.ajax = {};
 cws.ajax.onload = function(x, e){ console.log(e); };
 cws.ajax.onerror = function(x, e){ console.log('error'); console.log(e); };
 cws.ajax.onbusy = function(x, e){ console.log(e); };
-cws.ajax.oncatch = function(x, e){ console.log('javascript error'); console.log(e); };
+cws.ajax.oncatch = function(x, e){ console.log('javascript error'); console.log(x); };
 cws.ajax.id_stock = {};
 cws.ajax.result = {};
 // // argsの引数は主に"action", "request", "onload", "onerror", "onbusy"
@@ -736,11 +785,11 @@ cws.ajax.run = function(args) {
         } else {
             localrun(xr);
         }
-        return true;
+        return xr;
     } catch(e) {
         delete cws.ajax.id_stock[id];
         if (typeof(cws.ajax.oncatch) === "function") { cws.ajax.oncatch(e); }
-        return false;
+        return null;
     }
 }
 
