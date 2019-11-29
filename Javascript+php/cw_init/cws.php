@@ -38,6 +38,8 @@ class server{
             "K" => 1, "M" => 2, "G" => 3, "T" => 4, "P" => 5
         );
         $t->url_pattern = '/((?:https?|ftp):\/\/\S+)/';
+        $t->image_re = '/\.gif$|\.png$|\.jpg$|\.jpeg$|\.bmp$/i';
+        $t->video_re = '/\.mp4$|\.mpg$|\.mpeg$|\.swf$|\.ogv$|\.mov$|\.avi$|\.webm$/i';
         $t->url_rg = ["!","#","$","&","'","(",")","*",",","/",":",";","=","?","@","[","]"," "];
         $limit = mb_strtoupper(ini_get('memory_limit'));
         preg_match("/(\d*)([A-Z])/", $limit, $m);

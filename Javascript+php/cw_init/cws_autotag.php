@@ -488,7 +488,6 @@ function __tagesc_callback($search_re, $text, $loop_func = null, &$linkable = fa
 // ここで無名関数を後で入れることでループが完成する
 // add_taglink($arr, $_REQUEST['q']);
 function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array()){
-    $image_re = '/\.gif$|\.png$|\.jpg$|\.jpeg$|\.bmp$/i';
     global $callback_tagesc, $cws;
     if (!\is_array($arr)) $arr = array($arr);
     $q = get_request($q);
@@ -532,15 +531,18 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
     $title = '';
     $type = '__default__';
     $target = '__default__';
-    $set_link = function($m) use (&$target, &$title, &$type, &$internal, &$image_re){
+    $set_link = function($m) use (&$target, &$title, &$type, &$internal){
+        global $cws;
         $str = $m[1];
         $host = parse_url($str, PHP_URL_HOST);
         $internal = (is_null($host)) || ($host === $_SERVER['HTTP_HOST']);
         if ($type === '__default__') {
             $type = '';
             if ($internal) {
-                if (preg_match($image_re, $str)) {
+                if (preg_match($cws->image_re, $str)) {
                     $type = 'image';
+                } elseif (preg_match($cws->video_re, $str)) {
+                    $type = 'video';
                 }
             }
         }
@@ -548,6 +550,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
             if ($internal) {
                 switch($type) {
                 case 'image':
+                case 'video':
                     $target = '_blank';
                 break;
                 default:
@@ -564,9 +567,17 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
 
         switch($type) {
             case 'image':
-                return '<a href="'.$str.'"'.$target.$relno.'>'.
-                '<img alt="'.$title.'" src="'.$str.'">'.
-                '</a>';
+                $img_tag = '<img alt="'.$title.'" src="'.$str.'">';
+                if (isset($opt['link_image'])){
+                    return $opt['link_image']($img, array('src'=>$src, 'title'=>$title, 'target'=>$target, 'relno'=>$relno));
+                } else {
+                    return '<a href="'.$str.'"'.$target.$relno.'>'.
+                    '<img alt="'.$title.'" src="'.$str.'">'.
+                    '</a>';
+                }
+            break;
+            case 'movie': case 'video':
+                return '<object alt="'.$title.'" data="'.$str.'"></object>';
             break;
             default:
                 return '<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>';
@@ -574,6 +585,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         }
         $type = '__default__'; $target = '__default__';
     };
+    // $loop_funcを引数に渡してからくる関数郡
     $url_pattern = $cws->url_pattern;
     $callback_url = function($m, $text) use (&$url_pattern, &$set_link) {
         $text = preg_replace_callback($url_pattern, function($m) use (&$url_pattern, &$set_link){
@@ -582,14 +594,12 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         }, $text);
         return $text;
     };
-    $hatena_re = '/\[([^\[\]]+)\]/';
     $callback_hatena = function($m, $text, $linkable = false)
-     use ($hatena_re, &$set_link, &$title, &$type, &$target, &$internal, $callback_url) {
+     use (&$set_link, &$title, &$type, &$target, &$internal, $callback_url) {
         if ($linkable) {
             return $m[0];
         }
-        $text = preg_replace_callback($hatena_re, function($m) use (&$set_link, &$title, &$type, &$target, $callback_url) {
-            $str = $m[1];
+        $hatena_func = function($str) use (&$set_link, &$title, &$type, &$target, $callback_url) {
             if (preg_match('/^(.*\:\/\/[^\:\/]*.[^\:]*)(.*)$/', $str, $om)) {
                 $str = $om[1];
                 $t = $om[2];
@@ -607,7 +617,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
                     if ($media_mode) {
                     } else {
                         switch ($value) {
-                            case 'image': case 'movie':
+                            case 'image': case 'movie': case 'video':
                                 $media_mode = true;
                                 $type = $value;
                             break;
@@ -625,9 +635,41 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
             $url = str_replace(' ', '%20', $str);
             $text = $url;
             if ($text !== '') { $text = $set_link(array('', $text)); }
-            // $text = $left_str.$text;
             return $text;
-        }, $text);
+        };
+        if (\preg_match_all('/([^\[\]]*)([\[\]])/', $text, $match_slice)) {
+            $ret_text = '';
+            $edit_text = '';
+            $count = 0;
+            for ($i = 0; $i < count($match_slice[0]); $i++) {
+                $match = array($match_slice[0][$i], $match_slice[1][$i], $match_slice[2][$i]);
+                if (substr($match[1], -1, 1) === '\\') {
+                    if ($count > 0) {
+                        $edit_text .= $match[0];
+                    } else {
+                        $ret_text .= $match[0];
+                    }
+                } else {
+                    if ($match[2] === '[') {
+                        if ($count++ === 0) {
+                            $ret_text .= $match[1];
+                            $edit_text = '';
+                        } else {
+                            $edit_text .= $match[0];
+                        }
+                    } else {
+                        if (--$count <= 0) {
+                            $count = 0;
+                            $edit_text .= $match[1];
+                            $ret_text .= $hatena_func($edit_text);
+                        } else {
+                            $edit_text .= $match[0];
+                        }
+                    }
+                }
+            }
+            $text = $ret_text;
+        }
         return $text;
     };
     $hashtag_re = '/(\s)#([^\s\<#]*)/';

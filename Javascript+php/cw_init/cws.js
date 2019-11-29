@@ -12,6 +12,7 @@ cws.check.nullvar = function(args, nullvar){
     if (typeof(args) === 'undefined' || args === null) args = nullvar;
     return args;
 }
+// 複数のキーを優先順位ごとに指定できる (['a', 'b']でaがあればbよりも優先)
 cws.check.key = function(ary, key, nullvar) {
     ary = cws.check.nullvar(ary, {});
     key = cws.check.def(key, []);
@@ -503,8 +504,8 @@ cws.to.base64toBlob = function(base64, name) {
 	for (var i = 0; i < data.length; i++) {
         buf[i] = data.charCodeAt(i);
     }
-    // blobデータを作成
-    var blob = new Blob([buf], { type: mime });
+        // blobデータを作成
+        var blob = new Blob([buf.buffer], { type: mime });
     blob.name = name;
     return blob;
 };
@@ -530,7 +531,7 @@ cws.to.form_append = function(request, formdata_obj){
             } else {
                 var name = cws.check.key(val, 'name', '');
                 var ext = '';
-                var src = cws.check.key(val, 'src', '');
+                var src = cws.check.key(val, ['src', 'data'], '');
                 var data = null;
                 if (typeof(src) === 'string') {
                     data = cws.to.base64toBlob(src);
@@ -692,7 +693,7 @@ cws.ajax.run = function(args) {
     try {
         var form = null, formdata = null, query = {}, href = '';
         args = cws.check.nullvar(args, {});
-        var formdata_check = typeof(FormData) === 'function';
+        var formdata_check = typeof(FormData) !== 'undefined';
         var opt = Number(cws.check.key(args, 'option', 0));
         var id = Number(cws.check.key(args, 'id', 0));
         if (id >= 0) {
@@ -751,8 +752,7 @@ cws.ajax.run = function(args) {
         }
         xr.open(method, href, ansynch);
         xr.responseType = restype;
-
-
+        
         if (method === "POST") {
             if (formdata_check) {
                 formdata = cws.to.form_append(query, formdata);
