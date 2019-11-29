@@ -564,6 +564,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
     
         if ($title === '') $title = $str;
         $str = str_replace('%20', ' ', $str);
+        $ext = substr($str, strrpos($str, '.') + 1);
 
         switch($type) {
             case 'image':
@@ -577,7 +578,24 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
                 }
             break;
             case 'movie': case 'video':
-                return '<object alt="'.$title.'" data="'.$str.'"></object>';
+                $object = isset($opt['object']) ? boolval($opt['object']) : false;
+                $controller = isset($opt['controller']) ? boolval($opt['controller']) : true;
+                if ($object) {
+                    $autostart = isset($opt['autostart']) ? boolval($opt['autostart']) : false;
+                    $loop = isset($opt['loop']) ? boolval($opt['loop']) : false;
+                    return '<object type="video/'.$ext.'">'
+                    .'<param name="src" value="'.$str.'">'
+                    .'<param name="autostart" value="'.(($autostart)?'true':'false').'">'
+                    .'<param name="loop" value="'.(($loop)?'true':'false').'">'
+                    .'<param name="controller" value="'.(($controller)?'true':'false').'">'
+                    .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
+                    .'</object>';
+                } else {
+                    return '<video '.(($controller)?'controls':'').'>'
+                    .'<source src="'.$str.'" type="video/'.$ext.'">'
+                    .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
+                    .'</video>';
+                }
             break;
             default:
                 return '<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>';
