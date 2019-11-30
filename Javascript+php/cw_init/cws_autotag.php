@@ -11,7 +11,7 @@ function set_autotag(...$data_list){
     $index_array = function($var) { return \is_numeric($var) && $var >= 0; };
     $not_index_array = function($var) { return !\is_numeric($var); };
     $define = array();
-    $local_set_attr = function (&$list, $arg_opt, $all_attr = false) 
+    $local_set_attr = function(&$list, $arg_opt, $all_attr = false) 
     use (&$local_set, &$local_set_attr, &$define) {
         $out_list = array();
         foreach ($list as $key => $var) {
@@ -52,7 +52,7 @@ function set_autotag(...$data_list){
         return $out_list;
     };
     $out_list = array();
-    $local_set = function ($data_list, $arg_opt)
+    $local_set = function($data_list, $arg_opt)
     use (&$local_set, &$out_list, &$index_array, &$not_index_array, &$local_set_attr, &$define) {
         $data_type = gettype($data_list);
         if ($data_type === 'array') {
@@ -504,7 +504,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         $_q_str_l_s[] = tagesc_re($value);
         $_q_str_l_u[] = urlencode($value);
     }
-    $callback_search = function ($m, $text) use ($_q, $_q_str_l_s) {
+    $callback_search = function($m, $text) use ($_q, $_q_str_l_s, &$opt) {
         $callback_1 = function($m) {
             $text = $m[0];
             $m2_1 = substr($m[2], 0, 1);
@@ -531,7 +531,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
     $title = '';
     $type = '__default__';
     $target = '__default__';
-    $set_link = function($m) use (&$target, &$title, &$type, &$internal){
+    $set_link = function($m) use (&$target, &$title, &$type, &$internal, &$opt){
         global $cws;
         $str = $m[1];
         $host = parse_url($str, PHP_URL_HOST);
@@ -605,7 +605,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
     };
     // $loop_funcを引数に渡してからくる関数郡
     $url_pattern = $cws->url_pattern;
-    $callback_url = function($m, $text) use (&$url_pattern, &$set_link) {
+    $callback_url = function($m, $text) use (&$url_pattern, &$set_link, &$opt) {
         $text = preg_replace_callback($url_pattern, function($m) use (&$url_pattern, &$set_link){
             $text =  preg_replace_callback($url_pattern, $set_link, $m[0]);
             return $text;
@@ -613,11 +613,11 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         return $text;
     };
     $callback_hatena = function($m, $text, $linkable = false)
-     use (&$set_link, &$title, &$type, &$target, &$internal, $callback_url) {
+     use (&$set_link, &$title, &$type, &$target, &$internal, $callback_url, &$opt) {
         if ($linkable) {
             return $m[0];
         }
-        $hatena_func = function($str) use (&$set_link, &$title, &$type, &$target, $callback_url) {
+        $hatena_func = function($str) use (&$set_link, &$title, &$type, &$target, $callback_url, &$opt) {
             if (preg_match('/^(.*\:\/\/[^\:\/]*.[^\:]*)(.*)$/', $str, $om)) {
                 $str = $om[1];
                 $t = $om[2];
@@ -658,7 +658,9 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         if (\preg_match_all('/([^\[\]]*)([\[\]])/', $text, $match_slice)) {
             $ret_text = '';
             $edit_text = '';
+            $end_text = '';
             $count = 0;
+            if (\preg_match('/([^\[\]]*)$/', $text, $match_slice2)) { $end_text = $match_slice2[1]; }
             for ($i = 0; $i < count($match_slice[0]); $i++) {
                 $match = array($match_slice[0][$i], $match_slice[1][$i], $match_slice[2][$i]);
                 if (substr($match[1], -1, 1) === '\\') {
@@ -686,14 +688,14 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
                     }
                 }
             }
-            $text = $ret_text;
+            $text = $ret_text.$end_text;
         }
         return $text;
     };
     $hashtag_re = '/(\s)#([^\s\<#]*)/';
     $add_symbol = count($_q_str_l_f) !== 0;
-    $callback_tag = function($m, $text) use ($hashtag_re, $_q_join, $_q_str_l_f, $add_symbol) {
-        $text = preg_replace_callback($hashtag_re, function($m) use ($_q_join, $_q_str_l_f, $add_symbol){
+    $callback_tag = function($m, $text) use ($hashtag_re, $_q_join, $_q_str_l_f, $add_symbol, &$opt) {
+        $text = preg_replace_callback($hashtag_re, function($m) use ($_q_join, $_q_str_l_f, $add_symbol, &$opt){
             $tag = $m[2];
             $tag_hash = '#'.$m[2];
             $add_flag = $add_symbol && !isset($_q_str_l_f[$tag_hash]);
