@@ -687,7 +687,7 @@ cws.ajax.onbusy = function(x, e){ console.log(e); };
 cws.ajax.oncatch = function(x, e){ console.log('javascript error'); console.log(x); };
 cws.ajax.id_stock = {};
 cws.ajax.result = {};
-// // argsの引数は主に"action", "request", "onload", "onerror", "onbusy"
+// // argsの引数は主に"action", "request", "onload", "onerror", "onbusy", "id"
 // // 他に"ansynch", "method", "form", "catch", "type", "filelist", "option":0
 cws.ajax.run = function(args) {
     try {
@@ -720,14 +720,14 @@ cws.ajax.run = function(args) {
         if (href === '') href = cws.v.href;
         query = cws.to.merge(
             cws.to.merge(cws.to.request_array(href), query)
-            , cws.check.key(args, "request", {}));
+            , cws.to.merge(cws.check.key(args, "request", {}), cws.check.key(args, "query", {})));
         href = href.replace(/\?.*$/, "");
         var method = cws.check.key(form, 'method', "POST");
-        method = cws.check.key(args, "method", method).toUpperCase();
+        method = cws.check.key(args, 'method', method).toUpperCase();
 
-        var onload = cws.check.key(args, "onload", cws.ajax.onload);
-        var onerror = cws.check.key(args, "onerror", cws.ajax.onerror);
-        var onbusy = cws.check.key(args, "onbusy", cws.ajax.onbusy);
+        var onload = cws.check.key(args, ['onload', 'load'], cws.ajax.onload);
+        var onerror = cws.check.key(args, ['onerror', 'error'], cws.ajax.onerror);
+        var onbusy = cws.check.key(args, ['onbusy', 'busy'], cws.ajax.onbusy);
         if (Object.prototype.toString.call(onload) !== "[object Function]") onload = cws.ajax.onload;
         if (opt & 1) {
             query["refpath"] = cws.check.key(args, "refpath", location.pathname).toString();

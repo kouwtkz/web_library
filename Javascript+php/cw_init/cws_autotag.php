@@ -565,14 +565,14 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         if ($title === '') $title = $str;
         $str = str_replace('%20', ' ', $str);
         $ext = substr($str, strrpos($str, '.') + 1);
-
+        $return_text = '';
         switch($type) {
             case 'image':
                 $img_tag = '<img alt="'.$title.'" src="'.$str.'">';
                 if (isset($opt['link_image'])){
-                    return $opt['link_image']($img, array('src'=>$src, 'title'=>$title, 'target'=>$target, 'relno'=>$relno));
+                    $return_text = $opt['link_image']($img, array('src'=>$src, 'title'=>$title, 'target'=>$target, 'relno'=>$relno));
                 } else {
-                    return '<a href="'.$str.'"'.$target.$relno.'>'.
+                    $return_text = '<a href="'.$str.'"'.$target.$relno.'>'.
                     '<img alt="'.$title.'" src="'.$str.'">'.
                     '</a>';
                 }
@@ -583,7 +583,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
                 if ($object) {
                     $autostart = isset($opt['autostart']) ? boolval($opt['autostart']) : false;
                     $loop = isset($opt['loop']) ? boolval($opt['loop']) : false;
-                    return '<object type="video/'.$ext.'">'
+                    $return_text = '<object type="video/'.$ext.'">'
                     .'<param name="src" value="'.$str.'">'
                     .'<param name="autostart" value="'.(($autostart)?'true':'false').'">'
                     .'<param name="loop" value="'.(($loop)?'true':'false').'">'
@@ -591,17 +591,18 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
                     .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</object>';
                 } else {
-                    return '<video '.(($controller)?'controls':'').'>'
+                    $return_text = '<video '.(($controller)?'controls':'').'>'
                     .'<source src="'.$str.'" type="video/'.$ext.'">'
                     .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</video>';
                 }
             break;
             default:
-                return '<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>';
+                $return_text = '<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>';
             break;
         }
-        $type = '__default__'; $target = '__default__';
+        $title = ''; $type = '__default__'; $target = '__default__';
+        return $return_text;
     };
     // $loop_funcを引数に渡してからくる関数郡
     $url_pattern = $cws->url_pattern;
