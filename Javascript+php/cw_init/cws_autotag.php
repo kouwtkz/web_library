@@ -704,6 +704,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
             $tag_hash = '#'.$m[2];
             $add_flag = $add_symbol && !isset($_q_str_l_f[$tag_hash]);
             $tag_value = (!$add_symbol || $add_flag) ? $tag_hash : "[$tag]";
+            $tag = str_replace('+', '%2b', $tag);
             return $m[1].'<a class="tag" href="?q=%23'.$tag.'">'.$tag_value.'</a>'
             .($add_flag ? ('<a class="add" href="'.$_q_join.'%23'.$tag.'">＋</a>') : '');
         }, $text);
