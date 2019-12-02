@@ -500,7 +500,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
     $_q_str_l = (preg_match('/^\s*$/', $_q_str) ? array() : explode(' ', $_q_str));
     $_q_str_l_f = array_flip($_q_str_l);
     $_q_str_e = $_q ? urlencode($_q_str) : '';
-    $_q_join = '?q=' . ($_q ? $_q_str_e.' ' : '');
+    $_q_join = '?q=' . ($_q ? $_q_str_e.'+' : '');
     $_q_str_l_s = array();
     $_q_str_l_u = array();
     if ($_q) foreach($_q_str_l as $value) {
