@@ -616,8 +616,8 @@ cws.to.asctochar = function(str, decode){
         var chkstr = new RegExp("\\%"+cws.v.urlrg[i].charCodeAt().toString(16), "g");
         str = str.replace(chkstr, cws.v.urlrg[i]);
     }
-    str = str.replace('%2b', '+');
     if (decode) str = decodeURI(str);
+    str = str.replace('%2b', '+');
     return str;
 }
 cws.to.chartoasc = function(str, encode){
