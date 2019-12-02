@@ -1,7 +1,8 @@
 <?php
 namespace cws;
 # 自動タグ付け命令、頻繁に変えるため分離した
-$cws_autotag_enable = true;
+if (isset($cws_load)) $cws_load = array();
+$cws_load['autotag'] = false;
 include_once('cws.php');
 
 // 更新日を付与してhtmlの出力(改_20191107)

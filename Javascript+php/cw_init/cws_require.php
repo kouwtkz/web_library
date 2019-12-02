@@ -1,6 +1,7 @@
 <?php
 namespace cws;
-$cws_require_enable = true;
+if (isset($cws_load)) $cws_load = array();
+$cws_load['require'] = false;
 // ini_set('display_errors', "On");
 
 // $cws_jump_to = '/hogehoge';

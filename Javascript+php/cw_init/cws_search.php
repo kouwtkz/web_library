@@ -1,7 +1,8 @@
 <?php
 namespace cws;
 # 検索関数
-$cws_search_enable = true;
+if (isset($cws_load)) $cws_load = array();
+$cws_load['search'] = false;
 include_once('cws.php');
 
 class hook_class {

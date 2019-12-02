@@ -11,10 +11,20 @@ require_once($_SERVER['DOCUMENT_ROOT']."/common/cw_init/cws.php");
 */
 namespace cws;
 // $cws_debug_mode = true;
-if(!isset($cws_require_enable) || !$cws_require_enable) include_once('cws_require.php');
-if(!isset($cws_autotag_enable) || !$cws_autotag_enable) include_once('cws_autotag.php');
-if(!isset($cws_sethead_enable) || !$cws_sethead_enable) include_once('cws_sethead.php');
-if(!isset($cws_search_enable) || !$cws_search_enable) include_once('cws_search.php');
+if (!isset($cws_load)) $cws_load = array();
+$cws_load_default = array(
+    'require' => true,
+    'autotag' => true,
+    'sethead' => true,
+    'search' => false,
+);
+foreach ($cws_load as $key => $load_flag) {
+    $cws_load_default[$key] = \boolval($load_flag);
+}
+if ($cws_load_default['require']) include_once('cws_require.php');
+if ($cws_load_default['autotag']) include_once('cws_autotag.php');
+if ($cws_load_default['sethead']) include_once('cws_sethead.php');
+if ($cws_load_default['search']) include_once('cws_search.php');
 
 class server{
     function __construct($thisfile = __FILE__){
