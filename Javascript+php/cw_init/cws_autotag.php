@@ -136,9 +136,11 @@ function set_autotag(...$data_list){
             case 'twitter':
                 $card = get_val($define, 'twitter:card', get_val($define, 'card', 'summary'));
                 $site = get_val($define, 'twitter:site', get_val($define, 'site', ''));
+                $creator = get_val($define, 'twitter:creator', get_val($define, 'creator', ''));
                 $local_set(array(
                     array('tag' => 'meta', 'property' => 'twitter:card', 'content' => $card),
                     array('tag' => 'meta', 'property' => 'twitter:site', 'content' => $site),
+                    array('tag' => 'meta', 'property' => 'twitter:creator', 'content' => $creator),
                 ), $opt);
                 return;
             break;
