@@ -1,6 +1,6 @@
 <?php
 namespace cws;
-if (isset($cws_load)) $cws_load = array();
+if (!isset($cws_load)) $cws_load = array();
 $cws_load['require'] = false;
 // ini_set('display_errors', "On");
 

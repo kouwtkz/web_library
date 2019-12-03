@@ -1,7 +1,7 @@
 <?php
 namespace cws;
 # 自動タグ付け命令、頻繁に変えるため分離した
-if (isset($cws_load)) $cws_load = array();
+if (!isset($cws_load)) $cws_load = array();
 $cws_load['autotag'] = false;
 include_once('cws.php');
 

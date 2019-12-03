@@ -3,7 +3,7 @@ namespace cws;
 if (isset($cws_load_default)) {
     require_once("cws_search.php");
 } else {
-    if (isset($cws_load)) $cws_load = array();
+    if (!isset($cws_load)) $cws_load = array();
     $cws_load['search'] = true;
     require_once("cws.php");
 }

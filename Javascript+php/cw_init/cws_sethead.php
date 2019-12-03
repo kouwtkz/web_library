@@ -1,7 +1,7 @@
 <?php
 namespace cws;
 # 自動ヘッダー関数、頻繁に変えるため分離した
-if (isset($cws_load)) $cws_load = array();
+if (!isset($cws_load)) $cws_load = array();
 $cws_load['sethead'] = false;
 include_once('cws.php');
 

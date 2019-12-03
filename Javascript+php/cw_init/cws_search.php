@@ -1,7 +1,7 @@
 <?php
 namespace cws;
 # 検索関数
-if (isset($cws_load)) $cws_load = array();
+if (!isset($cws_load)) $cws_load = array();
 $cws_load['search'] = false;
 include_once('cws.php');
 
