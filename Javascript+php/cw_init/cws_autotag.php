@@ -428,8 +428,16 @@ function brackets_loop($text, ...$loop_func) {
         for ($i = 0; $i < count($match_slice[0]); $i++) {
             $match = array($match_slice[0][$i], $match_slice[1][$i], $match_slice[2][$i]);
             $esc_bks = false;
-            if (preg_match('/\\\\*$/', $match[1], $m_bks)){
-                if ((intval($m_bks[0]) % 2) === 1) $esc_bks = true;
+            if (preg_match('/\\\\+$/', $match[1], $m_bks)){
+                if ((strlen($m_bks[0]) % 2) === 1) $esc_bks = true;
+                if ($esc_bks) {
+                    $match[1] = preg_replace('/\\\\$/', '', $match[1]);
+                } else {
+                    $match[1] = preg_replace('/\\\\{2}$/', '\\', $match[1]);
+                }
+                $match[1] .= $match[2];
+                $match[2] = '';
+                $match[0] = $match[1].$match[2];
             }
             if ($esc_bks) {
                 if ($count > 0) {
@@ -471,8 +479,7 @@ function brackets_loop($text, ...$loop_func) {
 function tagesc_re($value) {
     if (empty($value)) return '//';
     $_q_f = substr($value, 0, 1);
-    $_q_s = \addslashes($value);
-    $_q_s_f = \addslashes($_q_f);
+    $_q_s = str_replace('/', '\\/', \addslashes($value));
     if ($_q_f === '#') {
         $ret = '/(\s)('.$_q_s.')([\s#\<])/';
     } else {
@@ -483,7 +490,7 @@ function tagesc_re($value) {
 function tagesc_callback($search_re, $text, ...$loop_func) {
     return __tagesc_callback($search_re, $text, $loop_func);
 }
-function __tagesc_callback($search_re, $text, $loop_func = null, &$linkable = false) {
+function __tagesc_callback($search_re, $text, $loop_func = null, $scriptable = false, &$linkable = false) {
     $recall = is_array($loop_func);
     $tag_char = '';
     if (!$recall && is_null($loop_func)) {
@@ -492,7 +499,7 @@ function __tagesc_callback($search_re, $text, $loop_func = null, &$linkable = fa
         // var_dump($text);
     }
     if (empty($search_re)) $search_re = tagesc_re($search_re);
-    $callback_tagesc = function($m) use (&$tag_char, &$loop_func, $search_re, $recall, &$linkable) {
+    $callback_tagesc = function($m) use (&$tag_char, &$loop_func, $search_re, $recall, $scriptable, &$linkable) {
         preg_match_all('/([^\<\>]*)(\\\\)?([\<\>]?)/',$m[0], $m1);
         $text = '';
         $cur = 0;
@@ -506,7 +513,7 @@ function __tagesc_callback($search_re, $text, $loop_func = null, &$linkable = fa
                     if (preg_match('/\S/',$str)) {
                         if ($recall) {
                             foreach ($loop_func as $func) {
-                                $str = __tagesc_callback($search_re, $str, $func, $linkable);
+                                $str = __tagesc_callback($search_re, $str, $func, $scriptable, $linkable);
                             }
                             $text .= $str.$esc.$check;
                         } else {
@@ -523,6 +530,8 @@ function __tagesc_callback($search_re, $text, $loop_func = null, &$linkable = fa
                     $linkable = true;
                 } elseif ($tag_check === '/a') {
                     $linkable = false;
+                } elseif ($tag_check === 'script' || $tag_check === '/script') {
+                    if (!$scriptable) $m1[0][$i] = 'span>';
                 }
                 if ($tag_char === '<') {
                     $tag_char = '';
@@ -540,7 +549,8 @@ function __tagesc_callback($search_re, $text, $loop_func = null, &$linkable = fa
 // ハッシュタグの自動リンクとはてな記法の自動リンクとハイライトの自動付与
 // ここで無名関数を後で入れることでループが完成する
 // add_taglink($arr, $_REQUEST['q']);
-function add_taglink($arr = array(), $q = null, $loop_func = null, $g_opt = array('autoplay'=>false)){
+function add_taglink($arr = array(), $q = null, $loop_func = null,
+$g_opt = array('autoplay'=>false, 'scriptable' => false)){
     global $callback_tagesc, $cws;
     if (!\is_array($arr)) $arr = array($arr);
     $q = get_request($q);
@@ -814,9 +824,11 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $g_opt = arra
         return $text;
     };
     $tag_char = '';
+    $func_list = array($callback_hatena, $callback_url, $callback_tag, $callback_search);
+    $scriptable = get_val($g_opt, 'scriptable', false);
     foreach($arr as $var) {
         $text = ' '.convert_to_href_decode($var['text']).' ';
-        $text = tagesc_callback('/.*/', $text, $callback_hatena, $callback_url, $callback_tag, $callback_search);
+        $text = __tagesc_callback('/.*/', $text, $func_list, $scriptable);
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $text = convert_to_br($text);
         $loop_func($text, $var);
