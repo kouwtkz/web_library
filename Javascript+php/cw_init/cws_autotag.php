@@ -530,8 +530,10 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $scriptable = f
                     $linkable = true;
                 } elseif ($tag_check === '/a') {
                     $linkable = false;
-                } elseif ($tag_check === 'script' || $tag_check === '/script') {
+                } elseif ($tag_check === 'script') {
                     if (!$scriptable) $m1[0][$i] = 'span>';
+                } elseif ($tag_check === '/script') {
+                    if (!$scriptable) $m1[0][$i] = '/span>';
                 }
                 if ($tag_char === '<') {
                     $tag_char = '';
