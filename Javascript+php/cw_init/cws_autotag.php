@@ -490,7 +490,13 @@ function tagesc_re($value) {
 function tagesc_callback($search_re, $text, ...$loop_func) {
     return __tagesc_callback($search_re, $text, $loop_func);
 }
-function __tagesc_callback($search_re, $text, $loop_func = null, $scriptable = false, &$linkable = false) {
+function do_tag_escout($intag, $outtag = 'span') {
+    return preg_replace('/^(\<)?([^\s\>]+)(\s?)(.*)(\>)$/', "$1$outtag$5$4$3", $intag); 
+}
+function __tagesc_callback($search_re, $text, $loop_func = null, $permission = array(), &$linkable = false) {
+    $tag_permission = array('script'=>false, 'style'=>false, 'other'=>false);
+    if (\is_array($permission))
+        foreach($permission as $key => $value) { $tag_permission[$key] = $value; }
     $recall = is_array($loop_func);
     $tag_char = '';
     if (!$recall && is_null($loop_func)) {
@@ -499,7 +505,7 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $scriptable = f
         // var_dump($text);
     }
     if (empty($search_re)) $search_re = tagesc_re($search_re);
-    $callback_tagesc = function($m) use (&$tag_char, &$loop_func, $search_re, $recall, $scriptable, &$linkable) {
+    $callback_tagesc = function($m) use (&$tag_char, &$loop_func, $search_re, $recall, $tag_permission, &$linkable) {
         preg_match_all('/([^\<\>]*)(\\\\)?([\<\>]?)/',$m[0], $m1);
         $text = '';
         $cur = 0;
@@ -513,7 +519,7 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $scriptable = f
                     if (preg_match('/\S/',$str)) {
                         if ($recall) {
                             foreach ($loop_func as $func) {
-                                $str = __tagesc_callback($search_re, $str, $func, $scriptable, $linkable);
+                                $str = __tagesc_callback($search_re, $str, $func, $tag_permission, $linkable);
                             }
                             $text .= $str.$esc.$check;
                         } else {
@@ -526,14 +532,20 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $scriptable = f
                 continue;
             } elseif ($check === '>') {
                 $tag_check = preg_replace('/^([^\s]*).*$/', '$1', $str);
-                if ($tag_check === 'a') {
-                    $linkable = true;
-                } elseif ($tag_check === '/a') {
-                    $linkable = false;
-                } elseif ($tag_check === 'script') {
-                    if (!$scriptable) $m1[0][$i] = 'span>';
-                } elseif ($tag_check === '/script') {
-                    if (!$scriptable) $m1[0][$i] = '/span>';
+                switch ($tag_check) {
+                    case 'a':
+                        $linkable = true;
+                    break;
+                    case '/a':
+                        $linkable = false;
+                    break;
+                    case 'script': case '/script':
+                        if (!$tag_permission['script']) $m1[0][$i] = do_tag_escout($m1[0][$i]);
+                    case 'style': case '/style': case 'link':
+                        if (!$tag_permission['style']) $m1[0][$i] = do_tag_escout($m1[0][$i]);
+                    case 'title': case '/title': case 'meta':
+                        if (!$tag_permission['other']) $m1[0][$i] = do_tag_escout($m1[0][$i]);
+
                 }
                 if ($tag_char === '<') {
                     $tag_char = '';
@@ -832,10 +844,10 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
     };
     $tag_char = '';
     $func_list = array($callback_hatena, $callback_url, $callback_tag, $callback_search);
-    $scriptable = get_val($g_opt, 'scriptable', false);
+    $permission = get_val($g_opt, 'permission', array());
     foreach($arr as $var) {
         $text = ' '.convert_to_href_decode($var['text']).' ';
-        $text = __tagesc_callback('/.*/', $text, $func_list, $scriptable);
+        $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $text = convert_to_br($text);
         $loop_func($text, $var);
