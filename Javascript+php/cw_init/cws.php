@@ -48,8 +48,9 @@ class server{
             "K" => 1, "M" => 2, "G" => 3, "T" => 4, "P" => 5
         );
         $t->url_pattern = '/((?:https?|ftp):\/\/\S+)/';
-        $t->image_re = '/\.gif$|\.png$|\.jpg$|\.jpeg$|\.bmp$/i';
-        $t->video_re = '/\.mp4$|\.mpg$|\.mpeg$|\.swf$|\.ogv$|\.mov$|\.avi$|\.webm$/i';
+        $t->image_re = '/\.(gif|png|jpg|jpeg|bmp)$/i';
+        $t->video_re = '/\.(mp4|mpg|mpeg|swf|ogv|mov|avi|webm)$/i';
+        $t->audio_re = '/\.(wave|wav|ogg|mp3|m4a|aac)$/i';
         $t->url_rg = ["!","#","$","&","'","(",")","*",",","/",":",";","=","?","@","[","]"," "];
         $limit = mb_strtoupper(ini_get('memory_limit'));
         preg_match("/(\d*)([A-Z])/", $limit, $m);
@@ -96,6 +97,20 @@ function get_ref(array &$array, $key, $do_unset = false, $null_val = null, $null
         return $retval;
     }
     return (isset($array[$key_or_nullval])) ? @$val_or_array[$key_or_nullval] : $nullval;
+}
+function is_true($val, $return_null=false){
+    $boolval = ( is_string($val) ? filter_var($val, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : (bool) $val );
+    return ( $boolval===null && !$return_null ? false : $boolval );
+}
+// 複数の配列からキーが存在するか確認する
+function get_mult($key, ...$array) { return _get_mult($key, $array); }
+function _get_mult($key, $arrays) {
+    if (\is_array($arrays)) {
+        foreach($arrays as $array) {
+            if (isset($array[$key])) return $array[$key];
+        }
+    }
+    return null;
 }
 // クエリを足して配列で返す
 function get_include_query($query, $new = array(), bool $query_only = false){

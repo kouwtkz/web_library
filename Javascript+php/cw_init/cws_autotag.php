@@ -540,7 +540,7 @@ function __tagesc_callback($search_re, $text, $loop_func = null, &$linkable = fa
 // ハッシュタグの自動リンクとはてな記法の自動リンクとハイライトの自動付与
 // ここで無名関数を後で入れることでループが完成する
 // add_taglink($arr, $_REQUEST['q']);
-function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array()){
+function add_taglink($arr = array(), $q = null, $loop_func = null, $g_opt = array('autoplay'=>false)){
     global $callback_tagesc, $cws;
     if (!\is_array($arr)) $arr = array($arr);
     $q = get_request($q);
@@ -557,7 +557,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         $_q_str_l_s[] = tagesc_re($value);
         $_q_str_l_u[] = urlencode($value);
     }
-    $callback_search = function($m, $text) use ($_q, $_q_str_l_s, &$opt) {
+    $callback_search = function($m, $text) use ($_q, $_q_str_l_s, &$g_opt) {
         $callback_1 = function($m) {
             $text = $m[0];
             $m2_1 = substr($m[2], 0, 1);
@@ -586,7 +586,12 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
     $target = '__default__';
     $class = '';
     $style = '';
-    $set_link = function($m) use (&$target, &$title, &$type, &$class, &$style, &$internal, &$opt){
+    $opt = array();
+    $get_mult_opt = function($key, $default) use (&$opt, &$g_opt) {
+        return get_val(get_mult($key, $g_opt, $opt), $default);
+    };
+    $set_link = function($m)
+    use (&$target, &$title, &$type, &$class, &$style, &$internal, &$opt, $g_opt, &$get_mult_opt){
         global $cws;
         $str = $m[1];
         $host = parse_url($str, PHP_URL_HOST);
@@ -598,14 +603,15 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
                     $type = 'image';
                 } elseif (preg_match($cws->video_re, $str)) {
                     $type = 'video';
+                } elseif (preg_match($cws->audio_re, $str)) {
+                    $type = 'audio';
                 }
             }
         }
         if ($target === '__default__') {
             if ($internal) {
                 switch($type) {
-                case 'image':
-                case 'video':
+                case 'image': case 'video': case 'audio':
                     $target = '_blank';
                 break;
                 default:
@@ -621,12 +627,16 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         $str = str_replace('%20', ' ', $str);
         $ext = substr($str, strrpos($str, '.') + 1);
         $return_text = '';
+        $object = false;
+        $loop = false;
+        $media_type = '';
         $add_style = ($style === '') ? '' : ' style="'.$style.'"';
         switch($type) {
             case 'image':
                 $img_tag = '<img alt="'.$title.'" src="'.$str.'">';
-                if (isset($opt['link_image'])){
-                    $return_text = $opt['link_image']($img, array('src'=>$src, 'title'=>$title, 'target'=>$target, 'relno'=>$relno));
+                $media_type = 'image';
+                if (isset($g_opt['link_image'])){
+                    $return_text = $g_opt['link_image']($img, array('src'=>$src, 'title'=>$title, 'target'=>$target, 'relno'=>$relno));
                 } else {
                     $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'">'.
                     '<img alt="'.$title.'" src="'.$str.'"'.$add_style.'>'.
@@ -634,35 +644,61 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
                 }
             break;
             case 'movie': case 'video':
-                $object = isset($opt['object']) ? boolval($opt['object']) : false;
-                $controller = isset($opt['controller']) ? boolval($opt['controller']) : true;
-                if ($object) {
-                    $autostart = isset($opt['autostart']) ? boolval($opt['autostart']) : false;
-                    $loop = isset($opt['loop']) ? boolval($opt['loop']) : false;
-                    $return_text = '<object type="video/'.$ext.'" class="'.$class.'"'.$add_style.'>'
-                    .'<param name="src" value="'.$str.'">'
-                    .'<param name="autostart" value="'.(($autostart)?'true':'false').'">'
-                    .'<param name="loop" value="'.(($loop)?'true':'false').'">'
-                    .'<param name="controller" value="'.(($controller)?'true':'false').'">'
-                    .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
-                    .'</object>';
-                } else {
-                    $return_text = '<video '.(($controller)?'controls':'').' class="'.$class.'"'.$add_style.'>'
-                    .'<source src="'.$str.'" type="video/'.$ext.'">'
+                $media_type = 'video';
+                $object = $get_mult_opt('object', false);
+                if (!$object) {
+                    $controls = $get_mult_opt('controls', true);
+                    $return_text = '<video '.(($controls)?'controls':'').' class="'.$class.'"'.$add_style.'>'
+                    .'<source src="'.$str.'">'
                     .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</video>';
+                } else {
+                    $loop = false;
+                }
+            break;
+            case 'audio':
+                $media_type = 'audio';
+                $object = $get_mult_opt('object', false);
+                if (!$object) {
+                    $controls = $get_mult_opt('controls', true);
+                    $autoplay = $get_mult_opt('autoplay', false);
+                    $loop = $get_mult_opt('loop', true);
+                    $muted = $get_mult_opt('muted', false);
+                    $preload = $get_mult_opt('preload', false);
+                    $return_text = '<audio '.(($controls)?'controls ':'')
+                    .''.(($autoplay)?'autoplay ':'').''.(($loop)?'loop ':'')
+                    .''.(($muted)?'muted ':'').''.(($preload)?'preload ':'')
+                    .'class="'.$class.'"'.$add_style.'>'
+                    .'<source src="'.$str.'">'
+                    .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
+                    .'</audio>';
+                } else {
+                    $loop = true;
                 }
             break;
             default:
                 $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'">'.$title.'</a>';
             break;
         }
-        $title = ''; $type = '__default__'; $target = '__default__'; $class = ''; $style = '';
+        if ($object) {
+            $controls = $get_mult_opt('controls', true);
+            $autoplay = $get_mult_opt('autoplay', false);
+            $loop = $get_mult_opt('loop', $loop);
+            $return_text = '<object type="'.$media_type.'" class="'.$class.'"'.$add_style.'>'
+            .'<param name="src" value="'.$str.'">'
+            .'<param name="autoplay" value="'.(($autoplay)?'true':'false').'">'
+            .'<param name="loop" value="'.(($loop)?'true':'false').'">'
+            .'<param name="controls" value="'.(($controls)?'true':'false').'">'
+            .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
+            .'</object>';
+        }
+        $title = ''; $type = '__default__'; $target = '__default__';
+        $class = ''; $style = ''; $opt = array();
         return $return_text;
     };
     // $loop_funcを引数に渡してからくる関数郡
     $url_pattern = $cws->url_pattern;
-    $callback_url = function($m, $text) use (&$url_pattern, &$set_link, &$opt) {
+    $callback_url = function($m, $text) use (&$url_pattern, &$set_link, &$g_opt) {
         $text = preg_replace_callback($url_pattern, function($m) use (&$url_pattern, &$set_link){
             $text =  preg_replace_callback($url_pattern, $set_link, $m[0]);
             return $text;
@@ -674,7 +710,8 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         if ($linkable) {
             return $m[0];
         }
-        $hatena_func = function($str) use (&$set_link, &$title, &$type, &$target, &$style, $callback_url, &$opt) {
+        $hatena_func = function($str)
+        use (&$set_link, &$title, &$type, &$target, &$class, &$style, $callback_url, &$opt) {
             if (preg_match('/^(.*\:\/\/[^\:\/]*.[^\:]*)(.*)$/', $str, $om)) {
                 $str = $om[1];
                 $t = $om[2];
@@ -688,48 +725,72 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
             $title = '';
             $type = '';
             if (preg_match_all('/\:([^\/\:]*)/', $t, $om)) {
-                foreach($om[1] as $value) {
-                    if ($media_mode) {
-                        $value_spl = \explode(',', $value);
-                        foreach($value_spl as $mono_spl) {
-                            if (preg_match('/^\s*(\D+)(\d*)/', $mono_spl, $swm)){
-                                switch ($swm[1]) {
-                                    case 'left': case 'right': case 'none':
-                                        $style .= 'float:'.$swm[1].';';
-                                    break;
-                                    case 'w':
-                                        $numstr = strval(intval($swm[2]));
-                                        $style .= 'width:'.$numstr.'px;';
-                                    break;
-                                    case 'h':
-                                        $numstr = strval(intval($swm[2]));
-                                        $style .= 'height:'.$numstr.'px;';
-                                    break;
-                                    case 'auto':
-                                        $style .= 'width:auto; height:auto;';
-                                    break;
-                                    default:
-                                    break;
-                                }
+            foreach($om[1] as $value) {
+                if ($media_mode) {
+                    $value_spl = \explode(',', $value);
+                    foreach($value_spl as $mono_spl) {
+                        if (preg_match('/^\s*(\D+)[\s:]*(\d*)(.*)$/', $mono_spl, $swm)){
+                            $add_style = array();
+                            $add_class =  array();
+                            switch ($swm[1]) {
+                                case 'left': case 'right': case 'none':
+                                    $add_style[] = 'float:'.$swm[1].';';
+                                break;
+                                case 'w':
+                                    $numstr = strval(intval($swm[2]));
+                                    $add_style[] = 'width:'.$numstr.'px;';
+                                break;
+                                case 'h':
+                                    $numstr = strval(intval($swm[2]));
+                                    $add_style[] .= 'height:'.$numstr.'px;';
+                                break;
+                                case 'auto':
+                                    $add_style[] .= 'width:auto; height:auto;';
+                                break;
+                                case 's': case 'style':
+                                    $add_style[] .= $swm[3];
+                                break;
+                                case 'c': case 'class':
+                                    $add_class[] .= $swm[3];
+                                break;
+                                case 'object': case 'controls': case 'loop':
+                                case 'muted': case 'autoplay': case 'preload':
+                                case 'no-object': case 'no-controls': case 'no-loop':
+                                case 'no-muted': case 'no-autoplay': case 'no-preload':
+                                    $opt_str = $swm[1];
+                                    $no = strpos($swm[1], 'no-')===0;
+                                    $opt_set = $swm[2].$swm[3];
+                                    if (preg_match('/\S/', $opt_set)) $opt_set = '1';
+                                    if ($no) {
+                                        $opt_str = substr($opt_str, 3);
+                                        $opt[$opt_str] = is_true($opt_set);
+                                    } else {
+                                        $opt[$opt_str] = !is_true($opt_set);
+                                    }
+                                break;
+                                default:
+                                break;
                             }
-                        }
-                    } else {
-                        switch ($value) {
-                            case 'image': case 'movie': case 'video': case 'audio':
-                                $media_mode = true;
-                                $type = $value;
-                            break;
-                            default:
-                                if ($title === '') {
-                                    $title = $value;
-                                } else {
-                                    $target = $value;
-                                }
-                            break;
+                            $style .= (($style === '') ? '' : ' ') . implode(' ', $add_style);
+                            $class .= (($class === '') ? '' : ' ') . implode(' ', $add_class);
                         }
                     }
+                } else {
+                    switch ($value) {
+                        case 'image': case 'movie': case 'video': case 'audio':
+                            $media_mode = true;
+                            $type = $value;
+                        break;
+                        default:
+                            if ($title === '') {
+                                $title = $value;
+                            } else {
+                                $target = $value;
+                            }
+                        break;
+                    }
                 }
-            }
+            } }
             $url = str_replace(' ', '%20', $str);
             $text = $url;
             if ($text !== '') { $text = $set_link(array('', $text)); }
@@ -740,8 +801,8 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
     };
     $hashtag_re = '/(\s)#([^\s\<#]*)/';
     $add_symbol = count($_q_str_l_f) !== 0;
-    $callback_tag = function($m, $text) use ($hashtag_re, $_q_join, $_q_str_l_f, $add_symbol, &$opt) {
-        $text = preg_replace_callback($hashtag_re, function($m) use ($_q_join, $_q_str_l_f, $add_symbol, &$opt){
+    $callback_tag = function($m, $text) use ($hashtag_re, $_q_join, $_q_str_l_f, $add_symbol) {
+        $text = preg_replace_callback($hashtag_re, function($m) use ($_q_join, $_q_str_l_f, $add_symbol){
             $tag = $m[2];
             $tag_hash = '#'.$m[2];
             $add_flag = $add_symbol && !isset($_q_str_l_f[$tag_hash]);
