@@ -584,7 +584,9 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
     $title = '';
     $type = '__default__';
     $target = '__default__';
-    $set_link = function($m) use (&$target, &$title, &$type, &$internal, &$opt){
+    $class = '';
+    $style = '';
+    $set_link = function($m) use (&$target, &$title, &$type, &$class, &$style, &$internal, &$opt){
         global $cws;
         $str = $m[1];
         $host = parse_url($str, PHP_URL_HOST);
@@ -619,14 +621,15 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         $str = str_replace('%20', ' ', $str);
         $ext = substr($str, strrpos($str, '.') + 1);
         $return_text = '';
+        $add_style = ($style === '') ? '' : ' style="'.$style.'"';
         switch($type) {
             case 'image':
                 $img_tag = '<img alt="'.$title.'" src="'.$str.'">';
                 if (isset($opt['link_image'])){
                     $return_text = $opt['link_image']($img, array('src'=>$src, 'title'=>$title, 'target'=>$target, 'relno'=>$relno));
                 } else {
-                    $return_text = '<a href="'.$str.'"'.$target.$relno.'>'.
-                    '<img alt="'.$title.'" src="'.$str.'">'.
+                    $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'">'.
+                    '<img alt="'.$title.'" src="'.$str.'"'.$add_style.'>'.
                     '</a>';
                 }
             break;
@@ -636,7 +639,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
                 if ($object) {
                     $autostart = isset($opt['autostart']) ? boolval($opt['autostart']) : false;
                     $loop = isset($opt['loop']) ? boolval($opt['loop']) : false;
-                    $return_text = '<object type="video/'.$ext.'">'
+                    $return_text = '<object type="video/'.$ext.'" class="'.$class.'"'.$add_style.'>'
                     .'<param name="src" value="'.$str.'">'
                     .'<param name="autostart" value="'.(($autostart)?'true':'false').'">'
                     .'<param name="loop" value="'.(($loop)?'true':'false').'">'
@@ -644,17 +647,17 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
                     .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</object>';
                 } else {
-                    $return_text = '<video '.(($controller)?'controls':'').'>'
+                    $return_text = '<video '.(($controller)?'controls':'').' class="'.$class.'"'.$add_style.'>'
                     .'<source src="'.$str.'" type="video/'.$ext.'">'
                     .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</video>';
                 }
             break;
             default:
-                $return_text = '<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>';
+                $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'">'.$title.'</a>';
             break;
         }
-        $title = ''; $type = '__default__'; $target = '__default__';
+        $title = ''; $type = '__default__'; $target = '__default__'; $class = ''; $style = '';
         return $return_text;
     };
     // $loop_funcを引数に渡してからくる関数郡
@@ -667,11 +670,11 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
         return $text;
     };
     $callback_hatena = function($m, $text, $linkable = false)
-     use (&$set_link, &$title, &$type, &$target, &$internal, $callback_url, &$opt) {
+     use (&$set_link, &$title, &$type, &$target, &$style, &$internal, $callback_url, &$opt) {
         if ($linkable) {
             return $m[0];
         }
-        $hatena_func = function($str) use (&$set_link, &$title, &$type, &$target, $callback_url, &$opt) {
+        $hatena_func = function($str) use (&$set_link, &$title, &$type, &$target, &$style, $callback_url, &$opt) {
             if (preg_match('/^(.*\:\/\/[^\:\/]*.[^\:]*)(.*)$/', $str, $om)) {
                 $str = $om[1];
                 $t = $om[2];
@@ -687,9 +690,32 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
             if (preg_match_all('/\:([^\/\:]*)/', $t, $om)) {
                 foreach($om[1] as $value) {
                     if ($media_mode) {
+                        $value_spl = \explode(',', $value);
+                        foreach($value_spl as $mono_spl) {
+                            if (preg_match('/^\s*(\D+)(\d*)/', $mono_spl, $swm)){
+                                switch ($swm[1]) {
+                                    case 'left': case 'right': case 'none':
+                                        $style .= 'float:'.$swm[1].';';
+                                    break;
+                                    case 'w':
+                                        $numstr = strval(intval($swm[2]));
+                                        $style .= 'width:'.$numstr.'px;';
+                                    break;
+                                    case 'h':
+                                        $numstr = strval(intval($swm[2]));
+                                        $style .= 'height:'.$numstr.'px;';
+                                    break;
+                                    case 'auto':
+                                        $style .= 'width:auto; height:auto;';
+                                    break;
+                                    default:
+                                    break;
+                                }
+                            }
+                        }
                     } else {
                         switch ($value) {
-                            case 'image': case 'movie': case 'video':
+                            case 'image': case 'movie': case 'video': case 'audio':
                                 $media_mode = true;
                                 $type = $value;
                             break;
