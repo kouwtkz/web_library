@@ -722,16 +722,16 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
         if ($linkable) {
             return $m[0];
         }
-        $hatena_func = function($str)
+        $hatena_func = function($get_str)
         use (&$set_link, &$title, &$type, &$target, &$class, &$style, $callback_url, &$opt) {
-            if (preg_match('/^(.*\:\/\/[^\:\/]*.[^\:]*)(.*)$/', $str, $om)) {
-                $str = $om[1];
+            if (preg_match('/^(.*\:\/\/[^\:\/]*.[^\:]*)(.*)$/', $get_str, $om)) {
+                $get_str = $om[1];
                 $t = $om[2];
-            } elseif (preg_match('/^([^\:]*)(.*)$/', $str, $om)) {
-                $str = $om[1];
+            } elseif (preg_match('/^([^\:]*)(.*)$/', $get_str, $om)) {
+                $get_str = $om[1];
                 $t = $om[2];
             } else {
-                $t = $str;
+                $t = $get_str;
             }
             $media_mode = false;
             $title = '';
@@ -758,6 +758,9 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
                                 break;
                                 case 'auto':
                                     $add_style[] .= 'width:auto; height:auto;';
+                                break;
+                                case 'small':
+                                    $get_str = preg_replace('/([^\/]+)\.([^#\?]+)/', 'thumb/$1_s.$2', $get_str);
                                 break;
                                 case 's': case 'style':
                                     $add_style[] .= $swm[3];
@@ -803,7 +806,7 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
                     }
                 }
             } }
-            $url = str_replace(' ', '%20', $str);
+            $url = str_replace(' ', '%20', $get_str);
             $text = $url;
             if ($text !== '') { $text = $set_link(array('', $text)); }
             return $text;
