@@ -429,7 +429,7 @@ function brackets_loop($text, ...$loop_func) {
             $match = array($match_slice[0][$i], $match_slice[1][$i], $match_slice[2][$i]);
             $esc_bks = false;
             if (preg_match('/\\\\*$/', $match[1], $m_bks)){
-                if ((intval($m_bks[0]) % 2) === 1) $esc = true;
+                if ((intval($m_bks[0]) % 2) === 1) $esc_bks = true;
             }
             if ($esc_bks) {
                 if ($count > 0) {
