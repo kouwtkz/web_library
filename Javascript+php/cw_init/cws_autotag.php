@@ -418,6 +418,56 @@ function convert_to_href_decode(string $str){
     $str = preg_replace_callback('/(href.*\=.*\")(.*)(\")/', $callback_quat, $str);
     return $str;
 }
+function brackets_loop($text, ...$loop_func) {
+    if (\preg_match_all('/([^\[\]]*)([\[\]])/', $text, $match_slice)) {
+        $ret_text = '';
+        $edit_text = '';
+        $end_text = '';
+        $count = 0;
+        if (\preg_match('/([^\[\]]*)$/', $text, $match_slice2)) { $end_text = $match_slice2[1]; }
+        for ($i = 0; $i < count($match_slice[0]); $i++) {
+            $match = array($match_slice[0][$i], $match_slice[1][$i], $match_slice[2][$i]);
+            $esc_bks = false;
+            if (preg_match('/\\\\*$/', $match[1], $m_bks)){
+                if ((intval($m_bks[0]) % 2) === 1) $esc = true;
+            }
+            if ($esc_bks) {
+                if ($count > 0) {
+                    $edit_text .= $match[0];
+                } else {
+                    $ret_text .= $match[0];
+                }
+            } else {
+                if ($match[2] === '[') {
+                    if ($count++ === 0) {
+                        $ret_text .= $match[1];
+                        $edit_text = '';
+                    } else {
+                        $edit_text .= $match[0];
+                    }
+                } else {
+                    if (--$count <= 0) {
+                        $count = 0;
+                        $edit_text .= $match[1];
+                        $out_str = $edit_text;
+                        foreach ($loop_func as $func) {
+                            $out_str = $func($out_str);
+                        }
+                        if ($out_str !== '') {
+                            if ($out_str !== null) $ret_text .= $out_str;
+                        } else {
+                            $ret_text .= "[$edit_text]";
+                        }
+                    } else {
+                        $edit_text .= $match[0];
+                    }
+                }
+            }
+        }
+        $text = $ret_text.$end_text;
+    }
+    return $text;
+}
 function tagesc_re($value) {
     if (empty($value)) return '//';
     $_q_f = substr($value, 0, 1);
@@ -659,41 +709,7 @@ function add_taglink($arr = array(), $q = null, $loop_func = null, $opt = array(
             if ($text !== '') { $text = $set_link(array('', $text)); }
             return $text;
         };
-        if (\preg_match_all('/([^\[\]]*)([\[\]])/', $text, $match_slice)) {
-            $ret_text = '';
-            $edit_text = '';
-            $end_text = '';
-            $count = 0;
-            if (\preg_match('/([^\[\]]*)$/', $text, $match_slice2)) { $end_text = $match_slice2[1]; }
-            for ($i = 0; $i < count($match_slice[0]); $i++) {
-                $match = array($match_slice[0][$i], $match_slice[1][$i], $match_slice[2][$i]);
-                if (substr($match[1], -1, 1) === '\\') {
-                    if ($count > 0) {
-                        $edit_text .= $match[0];
-                    } else {
-                        $ret_text .= $match[0];
-                    }
-                } else {
-                    if ($match[2] === '[') {
-                        if ($count++ === 0) {
-                            $ret_text .= $match[1];
-                            $edit_text = '';
-                        } else {
-                            $edit_text .= $match[0];
-                        }
-                    } else {
-                        if (--$count <= 0) {
-                            $count = 0;
-                            $edit_text .= $match[1];
-                            $ret_text .= $hatena_func($edit_text);
-                        } else {
-                            $edit_text .= $match[0];
-                        }
-                    }
-                }
-            }
-            $text = $ret_text.$end_text;
-        }
+        $text = brackets_loop($text, $hatena_func);
         return $text;
     };
     $hashtag_re = '/(\s)#([^\s\<#]*)/';
