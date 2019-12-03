@@ -593,6 +593,7 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
         }
         return $text;
     };
+    $data_origin = '';
     $title = '';
     $type = '__default__';
     $target = '__default__';
@@ -603,7 +604,7 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
         return get_val(get_mult($key, $g_opt, $opt), $default);
     };
     $set_link = function($m)
-    use (&$target, &$title, &$type, &$class, &$style, &$internal, &$opt, $g_opt, &$get_mult_opt){
+    use (&$data_origin, &$target, &$title, &$type, &$class, &$style, &$internal, &$opt, $g_opt, &$get_mult_opt){
         global $cws;
         $str = $m[1];
         $host = parse_url($str, PHP_URL_HOST);
@@ -645,13 +646,13 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
         $add_style = ($style === '') ? '' : ' style="'.$style.'"';
         switch($type) {
             case 'image':
-                $img_tag = '<img alt="'.$title.'" src="'.$str.'">';
+                $img_tag = '<img alt="'.$title.'" src="'.$str.'" data-origin="'.$data_origin.'">';
                 $media_type = 'image';
                 if (isset($g_opt['link_image'])){
                     $return_text = $g_opt['link_image']($img, array('src'=>$src, 'title'=>$title, 'target'=>$target, 'relno'=>$relno));
                 } else {
                     $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'">'.
-                    '<img alt="'.$title.'" src="'.$str.'"'.$add_style.'>'.
+                    '<img alt="'.$title.'" src="'.$str.'"'.$add_style.' data-origin="'.$data_origin.'">'.
                     '</a>';
                 }
             break;
@@ -660,7 +661,7 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
                 $object = $get_mult_opt('object', false);
                 if (!$object) {
                     $controls = $get_mult_opt('controls', true);
-                    $return_text = '<video '.(($controls)?'controls':'').' class="'.$class.'"'.$add_style.'>'
+                    $return_text = '<video '.(($controls)?'controls':'').' class="'.$class.'"'.$add_style.' data-origin="'.$data_origin.'">'
                     .'<source src="'.$str.'">'
                     .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</video>';
@@ -680,7 +681,7 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
                     $return_text = '<audio '.(($controls)?'controls ':'')
                     .''.(($autoplay)?'autoplay ':'').''.(($loop)?'loop ':'')
                     .''.(($muted)?'muted ':'').''.(($preload)?'preload ':'')
-                    .'class="'.$class.'"'.$add_style.'>'
+                    .'class="'.$class.'"'.$add_style.' data-origin="'.$data_origin.'">'
                     .'<source src="'.$str.'">'
                     .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</audio>';
@@ -689,14 +690,14 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
                 }
             break;
             default:
-                $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'">'.$title.'</a>';
+                $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'" data-origin="'.$data_origin.'">'.$title.'</a>';
             break;
         }
         if ($object) {
             $controls = $get_mult_opt('controls', true);
             $autoplay = $get_mult_opt('autoplay', false);
             $loop = $get_mult_opt('loop', $loop);
-            $return_text = '<object type="'.$media_type.'" class="'.$class.'"'.$add_style.'>'
+            $return_text = '<object type="'.$media_type.'" class="'.$class.'"'.$add_style.' data-origin="'.$data_origin.'">'
             .'<param name="src" value="'.$str.'">'
             .'<param name="autoplay" value="'.(($autoplay)?'true':'false').'">'
             .'<param name="loop" value="'.(($loop)?'true':'false').'">'
@@ -704,7 +705,7 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
             .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
             .'</object>';
         }
-        $title = ''; $type = '__default__'; $target = '__default__';
+        $data_origin = ''; $title = ''; $type = '__default__'; $target = '__default__';
         $class = ''; $style = ''; $opt = array();
         return $return_text;
     };
@@ -718,12 +719,13 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
         return $text;
     };
     $callback_hatena = function($m, $text, $linkable = false)
-     use (&$set_link, &$title, &$type, &$target, &$style, &$internal, $callback_url, &$opt) {
+     use (&$data_origin, &$set_link, &$title, &$type, &$target, &$style, &$internal, $callback_url, &$opt) {
         if ($linkable) {
             return $m[0];
         }
         $hatena_func = function($get_str)
-        use (&$set_link, &$title, &$type, &$target, &$class, &$style, $callback_url, &$opt) {
+        use (&$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, $callback_url, &$opt) {
+            $data_origin = "[$get_str]";
             if (preg_match('/^(.*\:\/\/[^\:\/]*.[^\:]*)(.*)$/', $get_str, $om)) {
                 $get_str = $om[1];
                 $t = $om[2];
