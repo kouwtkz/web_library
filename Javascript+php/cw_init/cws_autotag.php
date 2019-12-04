@@ -864,7 +864,7 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
     };
     $tag_char = '';
     $func_list = array($callback_hatena, $callback_url, $callback_tag, $callback_search);
-    $htmlspecialchars = get_val($g_opt, 'htmlspecialchars', array());
+    $htmlspecialchars = get_val($g_opt, 'htmlspecialchars', true);
     $permission = get_val($g_opt, 'permission', array());
     foreach($arr as $var) {
         $text = convert_to_href_decode($var['text']).' ';
