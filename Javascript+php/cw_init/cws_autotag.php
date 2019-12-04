@@ -564,7 +564,7 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
 // ここで無名関数を後で入れることでループが完成する
 // add_taglink($arr, $_REQUEST['q']);
 function add_taglink($arr = array(), $q = null, $loop_func = null,
-$g_opt = array('autoplay'=>false, 'scriptable' => false)){
+$g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
     global $callback_tagesc, $cws;
     if (!\is_array($arr)) $arr = array($arr);
     $q = get_request($q);
@@ -864,12 +864,14 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
     };
     $tag_char = '';
     $func_list = array($callback_hatena, $callback_url, $callback_tag, $callback_search);
+    $htmlspecialchars = get_val($g_opt, 'htmlspecialchars', array());
     $permission = get_val($g_opt, 'permission', array());
     foreach($arr as $var) {
-        $text = ' '.convert_to_href_decode($var['text']).' ';
-        $text = preg_replace('/^\s+|\s+$/', '', $text);
-        $text = convert_to_br($text);
+        $text = convert_to_href_decode($var['text']).' ';
+        if ($htmlspecialchars) $text = htmlspecialchars($text);
+        $text = ' '.convert_to_br($text);
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
+        $text = preg_replace('/^\s+|\s+$/', '', $text);
         $loop_func($text, $var);
     }
 }
