@@ -186,8 +186,26 @@ function join_attr(string $separator, string $bracket, ...$query){
     $local_join($query, true);
     return implode($separator, $char_array);
 }
+// クエリをつなげる
 function join_query(...$query){
-    return join_attr('', '&', $query);
+    return join_attr('&', '', $query);
+}
+function set_query($add_query = '' , $query = null, bool $q_mark = true) {
+    if (is_array($query)) {
+        if (is_array($add_query)) {
+            $add_query = join_query(array_merge($query, $add_query));
+            $query = '';
+        } else {
+            $query = join_query($query);
+        }
+    } elseif (!is_string($query)) {
+        $query = get_val($_SERVER, 'QUERY_STRING', '');
+    }
+    if (!is_string($add_query)) {
+        $add_query = join_query($add_query);
+    }
+    if ($query !== '') $add_query = $query.'&'.$add_query;
+    return ($q_mark?'?':'').$add_query;
 }
 function jsrun($str, $onLoadDelete = false){
     $id = '__aft_delete__';

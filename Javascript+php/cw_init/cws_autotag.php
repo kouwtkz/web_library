@@ -531,7 +531,7 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
                 }
                 continue;
             } elseif ($check === '>') {
-                $tag_check = preg_replace('/^([^\s]*).*$/', '$1', $str);
+                $tag_check = mb_strtolower(preg_replace('/^([^\s]*).*$/', '$1', $str));
                 switch ($tag_check) {
                     case 'a':
                         $linkable = true;
@@ -701,8 +701,22 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
                     $loop = true;
                 }
             break;
+            case 'inline':
+                $charset = $get_mult_opt('charset', 'utf-8');
+                $inline_max = $get_mult_opt('inline_max', 3000);
+                $a_charset = ($charset === '') ? '' : (' charset="'.$charset.'"');
+                $data = file_get_contents(get_docpath($str));
+                $data = mb_convert_encoding($data, $charset, "sjis, auto");
+                $data = \htmlspecialchars($data, ENT_QUOTES);
+                if (mb_strlen($data) > $inline_max) $data = mb_substr($data, 0, $inline_max).' ...';
+                $return_text = 
+                '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title."</a></br>"
+                ."<pre class='inline text' data-origin='$data_origin'>$data</pre>";
+            break;
             default:
-                $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'" data-origin="'.$data_origin.'">'.$title.'</a>';
+                $charset = $get_mult_opt('charset', '');
+                $a_charset = ($charset === '') ? '' : (' charset="'.$charset.'"');
+                $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title.'</a>';
             break;
         }
         if ($object) {
@@ -731,7 +745,7 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
         return $text;
     };
     $callback_hatena = function($m, $text, $linkable = false)
-     use (&$data_origin, &$set_link, &$title, &$type, &$target, &$style, &$internal, $callback_url, &$opt) {
+     use (&$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, &$internal, $callback_url, &$opt) {
         if ($linkable) {
             return $m[0];
         }
@@ -747,76 +761,82 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
             } else {
                 $t = $get_str;
             }
-            $media_mode = false;
             $title = '';
             $type = '';
+            $style = '';
+            $class = '';
             if (preg_match_all('/\:([^\/\:]*)/', $t, $om)) {
             foreach($om[1] as $value) {
-                if ($media_mode) {
-                    $value_spl = \explode(',', $value);
-                    foreach($value_spl as $mono_spl) {
-                        if (preg_match('/^\s*(\D+)[\s:]*(\d*)(.*)$/', $mono_spl, $swm)){
-                            $add_style = array();
-                            $add_class =  array();
-                            switch ($swm[1]) {
-                                case 'left': case 'right': case 'none':
-                                    $add_style[] = 'float:'.$swm[1].';';
-                                break;
-                                case 'w':
-                                    $numstr = strval(intval($swm[2]));
-                                    $add_style[] = 'width:'.$numstr.'px;';
-                                break;
-                                case 'h':
-                                    $numstr = strval(intval($swm[2]));
-                                    $add_style[] .= 'height:'.$numstr.'px;';
-                                break;
-                                case 'auto':
-                                    $add_style[] .= 'width:auto; height:auto;';
-                                break;
-                                case 'small':
-                                    $get_str = preg_replace('/([^\/]+)\.([^#\?]+)/', 'thumb/$1_s.$2', $get_str);
-                                break;
-                                case 's': case 'style':
-                                    $add_style[] .= $swm[3];
-                                break;
-                                case 'c': case 'class':
-                                    $add_class[] .= $swm[3];
-                                break;
-                                case 'object': case 'controls': case 'loop':
-                                case 'muted': case 'autoplay': case 'preload':
-                                case 'no-object': case 'no-controls': case 'no-loop':
-                                case 'no-muted': case 'no-autoplay': case 'no-preload':
-                                    $opt_str = $swm[1];
-                                    $no = strpos($swm[1], 'no-')===0;
-                                    $opt_set = $swm[2].$swm[3];
-                                    if (preg_match('/\S/', $opt_set)) $opt_set = '1';
-                                    if ($no) {
-                                        $opt_str = substr($opt_str, 3);
-                                        $opt[$opt_str] = is_true($opt_set);
-                                    } else {
-                                        $opt[$opt_str] = !is_true($opt_set);
-                                    }
-                                break;
-                                default:
-                                break;
-                            }
-                            $style .= (($style === '') ? '' : ' ') . implode(' ', $add_style);
-                            $class .= (($class === '') ? '' : ' ') . implode(' ', $add_class);
+                $value_spl = \explode(',', $value);
+                foreach($value_spl as $mono_spl) {
+                    if (preg_match('/^\s*([^\d\=]+)[\s:\=]*(\d*)(.*)$/', $mono_spl, $swm)){
+                        $add_style = array();
+                        $add_class =  array();
+                        switch ($swm[1]) {
+                            case 'left': case 'right': case 'none':
+                                $add_style[] = 'float:'.$swm[1].';';
+                            break;
+                            case 'w':
+                                $numstr = strval(intval($swm[2]));
+                                $add_style[] = 'width:'.$numstr.'px;';
+                            break;
+                            case 'h':
+                                $numstr = strval(intval($swm[2]));
+                                $add_style[] .= 'height:'.$numstr.'px;';
+                            break;
+                            case 'auto':
+                                $add_style[] .= 'width:auto; height:auto;';
+                            break;
+                            case 'small':
+                                $get_str = preg_replace('/([^\/]+)\.([^#\?]+)/', 'thumb/$1_s.$2', $get_str);
+                            break;
+                            case 's': case 'style':
+                                $add_style[] .= $swm[3];
+                            break;
+                            case 'c': case 'charset':
+                                $opt['charset'] = $swm[3];
+                            break;
+                            case 'cls': case 'class':
+                                $add_class[] .= $swm[3];
+                            break;
+                            case 'title':
+                                $title = $swm[3];
+                            break;
+                            case 'target':
+                                $target = $swm[3];
+                            break;
+                            case 'object': case 'controls': case 'loop':
+                            case 'muted': case 'autoplay': case 'preload':
+                            case 'no-object': case 'no-controls': case 'no-loop':
+                            case 'no-muted': case 'no-autoplay': case 'no-preload':
+                                $opt_str = $swm[1];
+                                $no = strpos($swm[1], 'no-')===0;
+                                $opt_set = $swm[2].$swm[3];
+                                if (preg_match('/\S/', $opt_set)) $opt_set = '1';
+                                if ($no) {
+                                    $opt_str = substr($opt_str, 3);
+                                    $opt[$opt_str] = is_true($opt_set);
+                                } else {
+                                    $opt[$opt_str] = !is_true($opt_set);
+                                }
+                            break;
+                            default:
+                                switch ($value) {
+                                    case 'image': case 'movie': case 'video': case 'audio': case 'text': case 'application': case 'inline':
+                                        $type = $value;
+                                    break;
+                                    default:
+                                        if ($title === '') {
+                                            $title = $value;
+                                        } else {
+                                            $target = $value;
+                                        }
+                                    break;
+                                }
+                            break;
                         }
-                    }
-                } else {
-                    switch ($value) {
-                        case 'image': case 'movie': case 'video': case 'audio':
-                            $media_mode = true;
-                            $type = $value;
-                        break;
-                        default:
-                            if ($title === '') {
-                                $title = $value;
-                            } else {
-                                $target = $value;
-                            }
-                        break;
+                        $style .= (($style === '') ? '' : ' ') . implode(' ', $add_style);
+                        $class .= (($class === '') ? '' : ' ') . implode(' ', $add_class);
                     }
                 }
             } }
@@ -847,9 +867,9 @@ $g_opt = array('autoplay'=>false, 'scriptable' => false)){
     $permission = get_val($g_opt, 'permission', array());
     foreach($arr as $var) {
         $text = ' '.convert_to_href_decode($var['text']).' ';
-        $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $text = convert_to_br($text);
+        $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         $loop_func($text, $var);
     }
 }
