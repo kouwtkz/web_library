@@ -848,7 +848,7 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
         $text = brackets_loop($text, $hatena_func);
         return $text;
     };
-    $hashtag_re = '/(\s)#([^\s\<#]*)/';
+    $hashtag_re = '/(^|\s)#([^\s\<#]*)/';
     $add_symbol = count($_q_str_l_f) !== 0;
     $callback_tag = function($m, $text) use ($hashtag_re, $_q_join, $_q_str_l_f, $add_symbol) {
         $text = preg_replace_callback($hashtag_re, function($m) use ($_q_join, $_q_str_l_f, $add_symbol){
@@ -867,9 +867,9 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
     $htmlspecialchars = get_val($g_opt, 'htmlspecialchars', true);
     $permission = get_val($g_opt, 'permission', array());
     foreach($arr as $var) {
-        $text = convert_to_href_decode($var['text']).' ';
+        $text = ' '.convert_to_href_decode($var['text']).' ';
         if ($htmlspecialchars) $text = htmlspecialchars($text);
-        $text = ' '.convert_to_br($text);
+        $text = convert_to_br($text);
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $loop_func($text, $var);
