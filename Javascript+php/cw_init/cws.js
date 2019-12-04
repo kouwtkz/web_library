@@ -1,9 +1,9 @@
-if (typeof(cws) === 'undefined') var cws = {};
+if (typeof(cws) === 'undefined') var cws = new Object();
 // あまりにも使わないのが蓄積しすぎたため、使うもののみ集約しました
 // IEは10以降を対応とする
-cws.vertion = '2.2.1 lite';
+cws.vertion = '2.3.1 lite';
 // 
-cws.check = {};
+cws.check = new Object();
 cws.check.def = function(args, undefined_var){
     if (typeof(args) === 'undefined') args = undefined_var;
     return args;
@@ -28,8 +28,8 @@ cws.check.array = function(args){
     if (args_type !== 'undefined') {
         if (args_type !== 'object') {
             args = [args];
-        } else if(args === null) args = [];
-    } else args = [];
+        } else if(args === null) args = new Array();
+    } else args = new Array();
     return args;
 }
 cws.check.setobj = function(obj, nullvar){
@@ -37,7 +37,7 @@ cws.check.setobj = function(obj, nullvar){
     var obj_type = typeof(obj);
     if (obj_type === 'object') { return ((obj_type === null) ? nullvar : obj); }
     else if (obj_type === 'undefined') { return {}; }
-    else { var tmp = obj; obj = {}; obj[tmp] = ''; return obj; }
+    else { var tmp = obj; obj = new Object(); obj[tmp] = ''; return obj; }
 }
 // キーが存在するかどうかのチェック
 cws.check.exists = function(key, obj){
@@ -46,18 +46,18 @@ cws.check.exists = function(key, obj){
     { return Object.keys(obj).indexOf(key) >= 0 }
     return false;
 }
-cws.v = {};
-cws.v.querys = {};
+cws.v = new Object();
+cws.v.querys = new Object();
 cws.v.href = location.href;
 cws.v.use_cookie = false;
 cws.v.date_default = 'Y-m-d';
 cws.v.defaultAnsynch = true;
 cws.v.userAgent = window.navigator.userAgent.toLowerCase();
 cws.v.urlrg = ['!','+','#','$','&','\'','(',')','*',',','/',':',';','=','?','@','[',']'];
-cws.v.re = {};
+cws.v.re = new Object();
 cws.v.re.time = /\d+[\-\/\:]\d+/;
 
-cws.get = {};
+cws.get = new Object();
 // デフォルトで今日の日付
 cws.get.date = function(format_str, date){
     format_str = cws.check.def(format_str, '');
@@ -144,7 +144,7 @@ cws.get.request = function(href, auto_newDate) {
     href = cws.check.def(href, location.href);
     if (typeof(href) === 'object') return href;
     auto_newDate = Boolean(cws.check.def(auto_newDate, true));
-    var arg = {};
+    var arg = new Object();
     var spl = href.split('?');
     if (spl.length === 1) return {};
     var qry = spl[spl.length - 1];
@@ -208,7 +208,7 @@ cws.get.hook_search = function(keyword, tag_mode, w_mode){
         this.mode_not = Boolean(cws.check.def(mode_not, false));        
         this.mode_tag = Boolean(cws.check.def(mode_tag, tag_mode));
     }
-    var hook_list = [];
+    var hook_list = new Array();
     var hook_mode = '';
     var hook_not = false;
     var hook_tag = tag_mode;
@@ -353,7 +353,7 @@ cws.get.from_page = function(array, page, max){
     array = cws.check.nullvar(array, []);
     page = Number(cws.check.nullvar(page, 1));
     max = Number(cws.check.nullvar(max, 200));
-    var r_array = [];
+    var r_array = new Array();
     var current = -1;
     var min_current = max * (page - 1);
     var max_current = max * page - 1;
@@ -375,7 +375,7 @@ cws.get.from_page = function(array, page, max){
     return r_array;
 }
 
-cws.to = {};
+cws.to = new Object();
 cws.to.json2str = function(json_arg) {
     switch (typeof(json_arg)) {
         case "string":
@@ -408,7 +408,7 @@ cws.to.merge = function(obj_a, obj_b, null_blank){
 cws.to.request_array = function(request_ary, path){
     request_ary = cws.check.def(request_ary, null);
     path = cws.check.def(path, cws.v.href);
-    var rq = {};
+    var rq = new Object();
     var query_str = decodeURI((path + "?").replace(/^.*?\?/,"").replace(/.$/, ""));
     var spl = query_str.split("&");
     var keys = Object.keys(spl);
@@ -419,7 +419,7 @@ cws.to.request_array = function(request_ary, path){
     return rq;
 }
 cws.to.form_array = function(data, upload_match_class) {
-    var obj = {};
+    var obj = new Object();
     if (typeof(data) === 'object') {
         if (typeof(data.elements) !== 'undefined') {
             var elem = data.elements;
@@ -448,7 +448,7 @@ cws.to.querystr = function(data, urlencoded, no_value_equal, no_name_send){
     // data -> form or array
     if (typeof(data) === 'object') {
         data = cws.to.form_array(data);
-        obj = [];
+        obj = new Array();
         var k = Object.keys(data);
         for (var i = 0; i < k.length; i++) {
             name = k[i];
@@ -559,7 +559,7 @@ cws.to.formData = function(data){
                 var _formdata = new FormData();
             }
         } else {
-            var _formdata = {};
+            var _formdata = new Object();
         }
         return _formdata;
     } else {
@@ -682,18 +682,18 @@ cws.to.strtotime = function(time){
     time.setHours(time.getHours() + hour, time.getMinutes() + minute, time.getSeconds() + second);
     return time;
 }
-cws.ajax = {};
+cws.ajax = new Object();
 cws.ajax.onload = function(x, e){ console.log(e); };
 cws.ajax.onerror = function(x, e){ console.log('error'); console.log(e); };
 cws.ajax.onbusy = function(x, e){ console.log(e); };
 cws.ajax.oncatch = function(x, e){ console.log('javascript error'); console.log(x); };
-cws.ajax.id_stock = {};
-cws.ajax.result = {};
+cws.ajax.id_stock = new Object();
+cws.ajax.result = new Object();
 // // argsの引数は主に"action", "request", "onload", "onerror", "onbusy", "id"
 // // 他に"ansynch", "method", "form", "catch", "type", "filelist", "option":0
 cws.ajax.run = function(args) {
     try {
-        var form = null, formdata = null, query = {}, href = '';
+        var form = null, formdata = null, query = new Object(), href = '';
         args = cws.check.nullvar(args, {});
         var formdata_check = typeof(FormData) !== 'undefined';
         var opt = Number(cws.check.key(args, 'option', 0));
@@ -795,7 +795,7 @@ cws.ajax.run = function(args) {
     }
 }
 
-cws.storage = {};
+cws.storage = new Object();
 cws.storage.out = function(key, value) {
     key = cws.check.nullvar(key, 'key');
     value = cws.check.def(value, null);
@@ -820,7 +820,7 @@ cws.storage.get = function(key, remove_flag) {
 }
 
 // Cookieの書き出しは制限、読み込みは制限しない
-if (typeof(cws.cookie) === 'undefined') cws.cookie = {};
+if (typeof(cws.cookie) === 'undefined') cws.cookie = new Object();
 cws.cookie.enable = Boolean(cws.check.key(cws.v, 'use_cookie', false));
 cws.cookie.out = function(key, value, time, path) {
     value = cws.check.def(value, 0);
@@ -865,12 +865,12 @@ cws.cookie.get = function(key) {
 function obj2array(obj){
     return Object.keys(obj).map(function (key) {return obj[key]});
 }
-cws.dom = {};
+cws.dom = new Object();
 cws.dom.removeChildren = function(elm){ while( elm.firstChild ){ elm.removeChild( elm.firstChild ); } }
 cws.v.global_init = function() {
     if (typeof(cws_cookie_use) === 'boolean') cws.cookie_use = cws_cookie_use;
 }
-cws.jump = {};
+cws.jump = new Object();
 cws.jump.location = function(href, auto_back) {
     href = cws.check.nullvar(href, location.href);
     auto_back = cws.check.nullvar(auto_back, false);
