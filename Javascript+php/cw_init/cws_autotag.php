@@ -648,7 +648,13 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
         if ($target === '_blank') { $relno = ' rel="noopener noreferrer"'; } else { $relno = ''; }
         if ($target !== '') $target = ' target="'.$target.'"';
     
-        if ($title === '') $title = $str;
+        if ($title === '') {
+            $url_len = intval($get_mult_opt('url_len', 256));
+            $title = substr($str, 0, $url_len);
+            if ($str !== $title) {
+                $title = mb_substr($title, 0, mb_strlen($title) - 1).'…';
+            }
+        }
         $str = str_replace('%20', ' ', $str);
         $ext = substr($str, strrpos($str, '.') + 1);
         $return_text = '';
@@ -703,12 +709,13 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
             break;
             case 'inline':
                 $charset = $get_mult_opt('charset', 'utf-8');
-                $inline_max = $get_mult_opt('inline_max', 3000);
+                $inline_len = $get_mult_opt('inline_len', 4096);
                 $a_charset = ($charset === '') ? '' : (' charset="'.$charset.'"');
                 $data = file_get_contents(get_docpath($str));
                 $data = mb_convert_encoding($data, $charset, "sjis, auto");
                 $data = \htmlspecialchars($data, ENT_QUOTES);
-                if (mb_strlen($data) > $inline_max) $data = mb_substr($data, 0, $inline_max).' ...';
+                $sub_data = substr($data, 0, $inline_len);
+                if ($data !== $sub_data) { $data = mb_substr($sub_data, 0, mb_strlen($sub_data) - 1).'…'; }
                 $return_text = 
                 '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title."</a></br>"
                 ."<pre class='inline text' data-origin='$data_origin'>$data</pre>";
@@ -739,7 +746,7 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
     $url_pattern = $cws->url_pattern;
     $callback_url = function($m, $text) use (&$url_pattern, &$set_link, &$g_opt) {
         $text = preg_replace_callback($url_pattern, function($m) use (&$url_pattern, &$set_link){
-            $text =  preg_replace_callback($url_pattern, $set_link, $m[0]);
+            $text =  preg_replace_callback('/^(.*)$/', $set_link, $m[0]);
             return $text;
         }, $text);
         return $text;
