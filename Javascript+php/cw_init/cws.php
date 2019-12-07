@@ -190,7 +190,7 @@ function join_attr(string $separator, string $bracket, ...$query){
 function join_query(...$query){
     return join_attr('&', '', $query);
 }
-function set_query($add_query = '' , $query = null, bool $q_mark = true) {
+function set_query($add_query = '' , $query = null, bool $q_mark = true, bool $special_replace = true) {
     if (is_array($query)) {
         if (is_array($add_query)) {
             $add_query = join_query(array_merge($query, $add_query));
@@ -205,6 +205,11 @@ function set_query($add_query = '' , $query = null, bool $q_mark = true) {
         $add_query = join_query($add_query);
     }
     if ($query !== '') $add_query = $query.'&'.$add_query;
+    if ($special_replace) {
+        $add_query = \preg_replace_callback('/(\:)/', function($m){
+            return '%'.dechex(ord($m[1]));
+        }, $add_query);
+    }
     return ($q_mark?'?':'').$add_query;
 }
 function jsrun($str, $onLoadDelete = false){

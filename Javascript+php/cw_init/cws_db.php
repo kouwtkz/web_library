@@ -358,39 +358,40 @@ class DB{
         }
         return $txt;
     }
-    function set_time($dateonly = false, $notnull = true){
+    function set_date($notnull = false, $dateonly = true){
+        return $this->set_time($notnull, $dateonly);
+    }
+    function set_datetime($notnull = false, $dateonly = false){
+        return $this->set_time($notnull, $dateonly);
+    }
+    function set_timestamp($default_timestamp = true, $type_timestamp = false){
+        return $this->set_time(true, false, $default_timestamp, $type_timestamp);
+    }
+    function set_time($notnull = false, $dateonly = false, $default_timestamp = false, $type_timestamp = false){
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
+        $add_default = '';
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = 'TEXT';
-                break;
+                if ($default_timestamp || $type_timestamp)
+                        $add_default = " DEFAULT (DATETIME('now', 'utc'))";
+            break;
             case 'mysql': case '1':
                 if ($dateonly) {
                     $txt = 'DATE';
                 } else {
-                    $txt = 'DATETIME';
+                    $txt = ($type_timestamp) ? 'TIMESTAMP' : 'DATETIME';
+                    if ($default_timestamp || $type_timestamp)
+                        $add_default = ' DEFAULT CURRENT_TIMESTAMP';
                 }
-                break;
+            break;
             default:
                 $txt = 'TEXT';
+            break;
         }
         if ($notnull) { $txt .= ' NOT NULL'; }
-        return $txt;
-    }
-    function set_timestamp(){
-        $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
-            case 'sqlite': case '0':
-                $txt = "TEXT NOT NULL DEFAULT (DATETIME('now', 'localtime'))";
-                break;
-            case 'mysql': case '1':
-                $txt = 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP';
-                break;
-                default:
-                $txt = 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP';
-        }
+        $txt .= $add_default;
         return $txt;
     }
     static function create($dbi = null){

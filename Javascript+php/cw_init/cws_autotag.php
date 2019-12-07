@@ -772,8 +772,9 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
             $type = '';
             $style = '';
             $class = '';
-            if (preg_match_all('/\:([^\/\:]*)/', $t, $om)) {
-            foreach($om[1] as $value) {
+            if (preg_match_all('/(\:)([^\:]*)/', $t, $om)) {
+            foreach($om[2] as $value) {
+                $plane_flag = false;
                 $value_spl = \explode(',', $value);
                 foreach($value_spl as $mono_spl) {
                     if (preg_match('/^\s*([^\d\=]+)[\s:\=]*(\d*)(.*)$/', $mono_spl, $swm)){
@@ -833,17 +834,22 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
                                         $type = $value;
                                     break;
                                     default:
-                                        if ($title === '') {
-                                            $title = $value;
-                                        } else {
-                                            $target = $value;
-                                        }
+                                        $plane_flag = true;
                                     break;
                                 }
                             break;
                         }
                         $style .= (($style === '') ? '' : ' ') . implode(' ', $add_style);
                         $class .= (($class === '') ? '' : ' ') . implode(' ', $add_class);
+                    } else {
+                        $plane_flag = true;
+                    }
+                    if ($plane_flag) {
+                        if ($title === '') {
+                            $title = $value;
+                        } else {
+                            $target = $value;
+                        }
                     }
                 }
             } }
