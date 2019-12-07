@@ -479,7 +479,7 @@ function brackets_loop($text, ...$loop_func) {
 function tagesc_re($value) {
     if (empty($value)) return '//';
     $_q_f = substr($value, 0, 1);
-    $_q_s = preg_replace('(\|\[|\]|\/|\\\\|\(|\))', '\\$0', \addslashes($value));
+    $_q_s = preg_replace('/[\|\[\]\/\\\\\(\)]/', '\\$0', \addslashes($value));
     if ($_q_f === '#') {
         $ret = '/(\s)('.$_q_s.')([\s#\<])/';
     } else {
