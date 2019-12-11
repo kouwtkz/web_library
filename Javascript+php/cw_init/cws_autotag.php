@@ -615,8 +615,13 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
     $get_mult_opt = function($key, $default) use (&$opt, &$g_opt) {
         return get_val(get_mult($key, $g_opt, $opt), $default);
     };
-    $set_link = function($m)
+    $class_reset = function()
     use (&$data_origin, &$target, &$title, &$type, &$class, &$style, &$internal, &$opt, $g_opt, &$get_mult_opt){
+        $data_origin = ''; $title = ''; $type = '__default__'; $target = '__default__';
+        $class = ''; $style = ''; $opt = array(); $internal = false;
+    };
+    $set_link = function($m)
+    use (&$class_reset, &$data_origin, &$target, &$title, &$type, &$class, &$style, &$internal, &$opt, $g_opt, &$get_mult_opt){
         global $cws;
         $str = $m[1];
         $host = parse_url($str, PHP_URL_HOST);
@@ -738,8 +743,7 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
             .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
             .'</object>';
         }
-        $data_origin = ''; $title = ''; $type = '__default__'; $target = '__default__';
-        $class = ''; $style = ''; $opt = array();
+        $class_reset();        
         return $return_text;
     };
     // $loop_funcを引数に渡してからくる関数郡
@@ -752,12 +756,14 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
         return $text;
     };
     $callback_hatena = function($m, $text, $linkable = false)
-     use (&$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, &$internal, $callback_url, &$opt) {
+     use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, &$internal, $callback_url, &$opt) {
         if ($linkable) {
             return $m[0];
         }
         $hatena_func = function($get_str)
-        use (&$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, $callback_url, &$opt) {
+        use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, $callback_url, &$opt) {
+            $set_link_flag = true;
+            $add_tag_list = array();
             $data_origin = "[$get_str]";
             if (preg_match('/^(.*\:\/\/[^\:\/]*.[^\:]*)(.*)$/', $get_str, $om)) {
                 $get_str = $om[1];
@@ -767,6 +773,15 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
                 $t = $om[2];
             } else {
                 $t = $get_str;
+            }
+            switch ($get_str) {
+                case 'b': case 'i':
+                    $add_tag_list[] = $get_str;
+                    $set_link_flag = false;
+                break;
+                case '.':
+                    $set_link_flag = false;
+                break;
             }
             $title = '';
             $type = '';
@@ -781,6 +796,9 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
                         $add_style = array();
                         $add_class =  array();
                         switch ($swm[1]) {
+                            case 'i': case 'b':
+                                $add_tag_list[] = $swm[1];
+                            break;
                             case 'left': case 'right': case 'none':
                                 $add_style[] = 'float:'.$swm[1].';';
                             break;
@@ -853,9 +871,21 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
                     }
                 }
             } }
-            $url = str_replace(' ', '%20', $get_str);
+            $url = str_replace(' ', '+', $get_str);
             $text = $url;
-            if ($text !== '') { $text = $set_link(array('', $text)); }
+            if ($set_link_flag) {
+                if ($text !== '') {
+                    $text = $set_link(array('', $text));
+                } else {
+                    $class_reset();
+                }
+            } else {
+                $text = $title;
+                $class_reset();
+            }
+            foreach ($add_tag_list as $add_tag) {
+                $text = "<$add_tag>$text</$add_tag>";
+            }
             return $text;
         };
         $text = brackets_loop($text, $hatena_func);
