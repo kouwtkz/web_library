@@ -614,7 +614,7 @@ cws.to.asctochar = function(str, decode, plus_to_space){
     plus_to_space = cws.check.nullvar(plus_to_space, true);
     if (plus_to_space) str = str.split('+').join(' ');
     for (var i = 0; i < cws.v.urlrg.length; i++) {
-        var chkstr = new RegExp("\\%"+cws.v.urlrg[i].charCodeAt().toString(16), "g");
+        var chkstr = new RegExp("\\%"+cws.v.urlrg[i].charCodeAt().toString(16), "gi");
         str = str.split(chkstr).join(cws.v.urlrg[i]);
     }
     if (decode) str = decodeURI(str);
