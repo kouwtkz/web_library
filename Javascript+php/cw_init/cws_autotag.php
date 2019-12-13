@@ -562,11 +562,11 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
 }
 // ハッシュタグの自動リンクとはてな記法の自動リンクとハイライトの自動付与
 // ここで無名関数を後で入れることでループが完成する
-// add_taglink($arr, $_REQUEST['q']);
-function add_taglink($arr = array(), $q = null, $loop_func = null,
+// set_autolink($arr, 'text', $_REQUEST['q']);
+function set_autolink($arr = array(), string $arr_text = 'text', $q = null, $loop_func = null,
 $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
     global $callback_tagesc, $cws;
-    if (!\is_array($arr)) $arr = array($arr);
+    if (!\is_array($arr)) $arr = array($arr_text => $arr);
     $q = get_request($q);
     if ($loop_func === null) $loop_func = function($text, $var){ \var_dump($var);\var_dump($text); };
     $_q = !empty($q);
@@ -915,12 +915,78 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
     $htmlspecialchars = get_val($g_opt, 'htmlspecialchars', true);
     $permission = get_val($g_opt, 'permission', array());
     foreach($arr as $var) {
-        $text = ' '.convert_to_href_decode($var['text']).' ';
+        $text = get_val($var, $arr_text, '');
+        $text = ' '.convert_to_href_decode($text).' ';
         if ($htmlspecialchars) $text = htmlspecialchars($text);
         $text = convert_to_br($text);
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $loop_func($text, $var);
+    }
+}
+// set_autolinkのクラス版、ループは-1から開始するため、
+// while($autolink->next()){}でループを回すことができます
+class AutoLink {
+    static private $default_g_opt = array('autoplay'=>false, 'htmlspecialchars' => true);
+    private $i = 0;
+    private $length = 0;
+    private $while = false;
+    public function get_index(){return $i;}
+    public function get_while() { return $while; }
+    private $arr = null;
+    private $key_text = 'text';
+    private $key_q = 'q';
+    private $q = null;
+    private $text = '';
+    function get_text() { return $this->text; }
+    function get_value() { return $this->arr[$this->i]; }
+    function set_autolink() {
+        $this_text = &$this->text;
+        set_autolink(array($this->arr[$this->i]), $this->key_text, $this->q,
+        function($text, $var) use (&$this_text) { $this_text = $text; }, $this->g_opt);
+    }
+    function set_arr($array = array()) { if (!is_array($array)) {
+        $array = array($key_text => $array);}
+        $this->arr = $array;
+        $this->length = count($this->arr);
+    }
+    public function current(){
+        if ($this->i < 0) $this->i = 0;
+        $this->while = $this->i < $this->length;
+        if ($this->while) {
+            $this->set_autolink();
+            return $this->i;
+        } else {
+            return false;
+        }
+    }
+    public function next(){
+        $this->while = $this->i < ($this->length - 1);
+        if ($this->while) {
+            $this->i++; $this->set_autolink();
+        }
+        return $this->while;
+    }
+    public function back(){
+        $this->while = $this->i > 0;
+        if ($this->while) {
+            $this->i--; $this->set_autolink();
+        }
+        return $this->while;
+    }
+    static function create($arr = array(), $key_text = 'text', $q = null, $g_opt = null){
+        if (is_null($g_opt)) $g_opt = self::$default_g_opt;
+        return new self($arr, $q, $key_text, $g_opt);
+    }
+    function __construct($arr = array(), $key_text = 'text', $q = null, $g_opt = null){
+        $this->set_arr($arr);
+        $this->key_text = $key_text;
+        $this->q = get_request($q, $this->key_q);
+        if (is_null($g_opt)) $g_opt = self::$default_g_opt;
+        $this->g_opt = $g_opt;
+        $this->i = -1;
+    }
+    function __destruct() {
     }
 }
 ?>
