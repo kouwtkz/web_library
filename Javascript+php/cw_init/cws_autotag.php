@@ -906,7 +906,13 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
         return $text;
     };
     $tag_char = '';
-    $func_list = array($callback_hatena, $callback_url, $callback_tag, $callback_search);
+    $func_list = array();
+    if (get_val($g_opt, 'cbf_hatena', true)) $func_list[] = $callback_hatena; 
+    if (get_val($g_opt, 'cbf_url', true)) $func_list[] = $callback_url; 
+    if (get_val($g_opt, 'cbf_tag', true)) $func_list[] = $callback_tag; 
+    if (get_val($g_opt, 'cbf_search', true)) $func_list[] = $callback_search; 
+    $htmlspecialchars = get_val($g_opt, 'cbf_hatena', true);
+    
     $htmlspecialchars = get_val($g_opt, 'htmlspecialchars', true);
     $permission = get_val($g_opt, 'permission', array());
     foreach($arr as $var) {
