@@ -577,6 +577,16 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
     $_q_join = '?q=' . ($_q ? $_q_str_e.'+' : '');
     $_q_str_l_s = array();
     $_q_str_l_u = array();
+    $data_origin = '';
+    $title = '';
+    $type = '__default__';
+    $target = '__default__';
+    $class = '';
+    $style = '';
+    $opt = array();
+    $get_mult_opt = function($key, $default) use (&$opt, &$g_opt) {
+        return get_val(get_mult($key, $g_opt, $opt), $default);
+    };
     if ($_q) foreach($_q_str_l as $value) {
         $_q_str_l_s[] = tagesc_re($value);
         $_q_str_l_u[] = urlencode($value);
@@ -604,16 +614,6 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
             $text = preg_replace_callback($_q_str_s, $callback_1, $text);
         }
         return $text;
-    };
-    $data_origin = '';
-    $title = '';
-    $type = '__default__';
-    $target = '__default__';
-    $class = '';
-    $style = '';
-    $opt = array();
-    $get_mult_opt = function($key, $default) use (&$opt, &$g_opt) {
-        return get_val(get_mult($key, $g_opt, $opt), $default);
     };
     $class_reset = function()
     use (&$data_origin, &$target, &$title, &$type, &$class, &$style, &$internal, &$opt, $g_opt, &$get_mult_opt){
@@ -897,8 +897,9 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
         $text = preg_replace_callback($hashtag_re, function($m) use ($_q_join, $_q_str_l_f, $add_symbol){
             $tag = $m[2];
             $tag_hash = '#'.$m[2];
-            $add_flag = $add_symbol && !isset($_q_str_l_f[$tag_hash]);
-            $tag_value = (!$add_symbol || $add_flag) ? $tag_hash : "[$tag]";
+            $brackets_flag = isset($_q_str_l_f[$tag_hash]);
+            $tag_value = ($add_symbol && $brackets_flag) ? "[$tag]" : $tag_hash;
+            $add_flag = $add_symbol && !$brackets_flag && !isset($_q_str_l_f['-'.$tag_hash]);
             $tag = str_replace('+', '%2b', $tag);
             return $m[1].'<a class="tag" href="?q=%23'.$tag.'">'.$tag_value.'</a>'
             .($add_flag ? ('<a class="add" href="'.$_q_join.'%23'.$tag.'">＋</a>') : '');
