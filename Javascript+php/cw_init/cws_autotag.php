@@ -974,13 +974,13 @@ class AutoLink {
         }
         return $this->while;
     }
-    static function create($arr = array(), $key_text = 'text', $q = null, $g_opt = null){
+    static function create($arr = array(), string $key_text = 'text', $q = null, $g_opt = null){
         if (is_null($g_opt)) $g_opt = self::$default_g_opt;
         return new self($arr, $q, $key_text, $g_opt);
     }
-    function __construct($arr = array(), $key_text = 'text', $q = null, $g_opt = null){
+    function __construct($arr = array(), string $key_text = 'text', $q = null, $g_opt = null){
         $this->set_arr($arr);
-        $this->key_text = $key_text;
+        if ($key_text !== '') $this->key_text = $key_text;
         $this->q = get_request($q, $this->key_q);
         if (is_null($g_opt)) $g_opt = self::$default_g_opt;
         $this->g_opt = $g_opt;
