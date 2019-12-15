@@ -788,7 +788,29 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
             $style = '';
             $class = '';
             if (preg_match_all('/(\:)([^\:]*)/', $t, $om)) {
-            foreach($om[2] as $value) {
+            $om_2l = $om[2];
+            $c_om_2l = count($om_2l);
+            $om_2l[] = '';
+            $value_l = array();
+            $value = '';
+            for($i = 0; $i < $c_om_2l; $i++) {
+                $rest_0 = substr($om_2l[$i], -1);
+                $rest_1 = substr($om_2l[$i + 1], 0, 1);
+                if ($rest_0 === '\\') {
+                    preg_match('/\\\\+$/', $om_2l[$i], $om2);
+                    if (strlen($om2[0]) % 2 === 1){
+                        $value_l[] = substr($om_2l[$i], 0, strlen($om_2l[$i]) - 1);
+                        continue;
+                    } else {
+                        $value_l[] = $om_2l[$i];
+                    }
+                } elseif(is_numeric($rest_0.$rest_1)) {
+                    $value_l[] = $om_2l[$i];
+                    continue;
+                } else {
+                    $value_l[] = $om_2l[$i];
+                }
+                $value = implode(':', $value_l);
                 $plane_flag = false;
                 $value_spl = \explode(',', $value);
                 foreach($value_spl as $mono_spl) {
@@ -870,6 +892,7 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
                         }
                     }
                 }
+                $value_l = array();
             } }
             $url = str_replace(' ', '+', $get_str);
             $text = $url;
