@@ -202,9 +202,15 @@ function set_query($add_query = '' , $query = null, bool $q_mark = true, bool $s
         $query = get_val($_SERVER, 'QUERY_STRING', '');
     }
     if (!is_string($add_query)) {
-        $query = \preg_replace_callback('/\&?([^\=]*)\=?([^\&]*)/', function($m) use ($add_query){
+        $query = \preg_replace_callback('/(\&?)([^\=]*)\=?([^\&]*)/', function($m) use (&$add_query){
             if ($m[0] === '') return;
-            if (isset($add_query[$m[1]])) $m[0] = '';
+            if (isset($add_query[$m[2]])) {
+                $m[0] = $m[1].$m[2];
+                if ($add_query[$m[2]] !== '') {
+                    $m[0] .= '='.$add_query[$m[2]];
+                    unset($add_query[$m[2]]);
+                }
+            }
             return $m[0];
         }, $query);
         if (substr($query, 0,1) === '&') $query = substr($query, 1);
