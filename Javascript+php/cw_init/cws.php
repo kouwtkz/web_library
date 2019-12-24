@@ -202,9 +202,22 @@ function set_query($add_query = '' , $query = null, bool $q_mark = true, bool $s
         $query = get_val($_SERVER, 'QUERY_STRING', '');
     }
     if (!is_string($add_query)) {
+        $query = \preg_replace_callback('/\&?([^\=]*)\=?([^\&]*)/', function($m) use ($add_query){
+            if ($m[0] === '') return;
+            if (isset($add_query[$m[1]])) $m[0] = '';
+            return $m[0];
+        }, $query);
+        if (substr($query, 0,1) === '&') $query = substr($query, 1);
         $add_query = join_query($add_query);
     }
-    if ($query !== '') $add_query = $query.'&'.$add_query;
+    if ($query !== '') {
+        if ($add_query === '') {
+            $add_query = $query;
+        }
+        else {
+            $add_query = $query.'&'.$add_query;
+        }
+    }
     if ($special_replace) {
         $add_query = \preg_replace_callback('/(\:)/', function($m){
             return '%'.dechex(ord($m[1]));

@@ -728,7 +728,7 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
             default:
                 $charset = $get_mult_opt('charset', '');
                 $a_charset = ($charset === '') ? '' : (' charset="'.$charset.'"');
-                $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title.'</a>';
+                $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'" style="'.$style.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title.'</a>';
             break;
         }
         if ($object) {
@@ -743,7 +743,11 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
             .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
             .'</object>';
         }
-        $class_reset();        
+        $text_align = get_val($opt,'text-align', '');
+        if ($text_align !== '') {
+            $return_text = "<p style='text-align:$text_align'>$return_text</p>";
+        }
+        $class_reset();
         return $return_text;
     };
     // $loop_funcを引数に渡してからくる関数郡
@@ -824,8 +828,14 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
                             case 'left': case 'right': case 'none':
                                 $add_style[] = 'float:'.$swm[1].';';
                             break;
+                            case 'text-left': case 'text-right': case 'text-center':
+                                $swm[1] = \substr($swm[1], 5);
+                            case 'center':
+                                $opt['text-align'] = $swm[1];
+                            break;
                             case 'w':
                                 $numstr = strval(intval($swm[2]));
+                                var_dump($swm);
                                 $add_style[] = 'width:'.$numstr.'px;';
                             break;
                             case 'h':
