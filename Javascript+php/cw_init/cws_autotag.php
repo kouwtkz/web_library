@@ -835,7 +835,6 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
                             break;
                             case 'w':
                                 $numstr = strval(intval($swm[2]));
-                                var_dump($swm);
                                 $add_style[] = 'width:'.$numstr.'px;';
                             break;
                             case 'h':
