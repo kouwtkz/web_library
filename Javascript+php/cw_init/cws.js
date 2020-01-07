@@ -14,8 +14,8 @@ cws.check.nullvar = function(args, nullvar){
 }
 // 複数のキーを優先順位ごとに指定できる (['a', 'b']でaがあればbよりも優先)
 cws.check.key = function(ary, key, nullvar) {
-    ary = cws.check.nullvar(ary, {});
-    key = cws.check.def(key, []);
+    ary = cws.check.nullvar(ary, new Object());
+    key = cws.check.def(key, new Array());
     if (Object.prototype.toString.call(key) !== '[object Array]') key = [key];
     nullvar = cws.check.def(nullvar, '');
     for (var i = 0; i < key.length; i++) {
@@ -33,10 +33,10 @@ cws.check.array = function(args){
     return args;
 }
 cws.check.setobj = function(obj, nullvar){
-    nullvar = cws.check.def(nullvar, {});
+    nullvar = cws.check.def(nullvar, new Object());
     var obj_type = typeof(obj);
     if (obj_type === 'object') { return ((obj_type === null) ? nullvar : obj); }
-    else if (obj_type === 'undefined') { return {}; }
+    else if (obj_type === 'undefined') { return new Object(); }
     else { var tmp = obj; obj = new Object(); obj[tmp] = ''; return obj; }
 }
 // キーが存在するかどうかのチェック
@@ -46,8 +46,10 @@ cws.check.exists = function(key, obj){
     { return Object.keys(obj).indexOf(key) >= 0 }
     return false;
 }
+// 変数用に使うもの
 cws.v = new Object();
 cws.v.querys = new Object();
+cws.v.style = new Object();
 cws.v.href = location.href;
 cws.v.use_cookie = false;
 cws.v.date_default = 'Y-m-d';
@@ -146,7 +148,7 @@ cws.get.request = function(href, auto_newDate) {
     auto_newDate = Boolean(cws.check.def(auto_newDate, true));
     var arg = new Object();
     var spl = href.split('?');
-    if (spl.length === 1) return {};
+    if (spl.length === 1) return new Object();
     var qry = spl[spl.length - 1];
     var pair = qry.split('&');
     for (var i = 0; pair[i]; i++) {
@@ -331,7 +333,7 @@ cws.get.search = function(subject, keyword) {
 }
 
 cws.get.max_page = function(array, max, reverse){
-    array = cws.check.nullvar(array, []);
+    array = cws.check.nullvar(array, new Array());
     max = Number(cws.check.nullvar(max, 200));
     reverse = Boolean(cws.check.nullvar(reverse, false));
     var current = -1;
@@ -350,7 +352,7 @@ cws.get.max_page = function(array, max, reverse){
     return Math.floor(current / max) + 1;
 }
 cws.get.from_page = function(array, page, max){
-    array = cws.check.nullvar(array, []);
+    array = cws.check.nullvar(array, new Array());
     page = Number(cws.check.nullvar(page, 1));
     max = Number(cws.check.nullvar(max, 200));
     var r_array = new Array();
@@ -395,7 +397,7 @@ cws.to.json2str = function(json_arg) {
     return null;
 }
 cws.to.merge = function(obj_a, obj_b, null_blank){
-    if (typeof(obj_b) !== 'undefined' && obj_b === null && Boolean(cws.check.def(null_blank, true))) return {};
+    if (typeof(obj_b) !== 'undefined' && obj_b === null && Boolean(cws.check.def(null_blank, true))) return new Object();
     obj_a = cws.check.setobj(obj_a);
     obj_b = cws.check.setobj(obj_b);
     var keys_b = Object.keys(obj_b);
@@ -510,14 +512,14 @@ cws.to.base64toBlob = function(base64, name) {
     return blob;
 };
 cws.to.setQuery = function(array_list, path) {
-    array_list = cws.check.def(array_list, {});
+    array_list = cws.check.def(array_list, new Object());
     path = cws.check.def(path, cws.v.href);
     var _path = path.replace(/\?.*$/, "");
     var q = cws.to.querystr(cws.to.merge(cws.get.request(path), array_list), true);
     return _path + ((q === '') ? '' : '?') + q;
 }
 cws.to.form_append = function(request, formdata_obj){
-    request = cws.check.nullvar(request, {});
+    request = cws.check.nullvar(request, new Object());
     formdata_obj = cws.check.nullvar(formdata_obj, new FormData());
     keys = Object.keys(request);
     for (var i = 0; i < keys.length; i++) {
@@ -683,18 +685,21 @@ cws.to.strtotime = function(time){
     return time;
 }
 cws.ajax = new Object();
+cws.ajax.enable = true;
 cws.ajax.onload = function(x, e){ console.log(e); };
 cws.ajax.onerror = function(x, e){ console.log('error'); console.log(e); };
 cws.ajax.onbusy = function(x, e){ console.log(e); };
 cws.ajax.oncatch = function(x, e){ console.log('javascript error'); console.log(x); };
 cws.ajax.id_stock = new Object();
 cws.ajax.result = new Object();
-// // argsの引数は主に"action", "request", "onload", "onerror", "onbusy", "id"
-// // 他に"ansynch", "method", "form", "catch", "type", "filelist", "option":0
+cws.ajax.v = new Object();
+// argsの引数は主に"action", "request", "onload", "onerror", "onbusy", "id"
+// 他に"ansynch", "method", "form", "catch", "type", "filelist", "option":0
 cws.ajax.run = function(args) {
+    if (!cws.ajax.enable) return false;
     try {
         var form = null, formdata = null, query = new Object(), href = '';
-        args = cws.check.nullvar(args, {});
+        args = cws.check.nullvar(args, new Object());
         var formdata_check = typeof(FormData) !== 'undefined';
         var opt = Number(cws.check.key(args, 'option', 0));
         var id = Number(cws.check.key(args, 'id', 0));
@@ -722,7 +727,7 @@ cws.ajax.run = function(args) {
         if (href === '') href = cws.v.href;
         query = cws.to.merge(
             cws.to.merge(cws.to.request_array(href), query)
-            , cws.to.merge(cws.check.key(args, "request", {}), cws.check.key(args, "query", {})));
+            , cws.to.merge(cws.check.key(args, "request", new Object()), cws.check.key(args, "query", new Object())));
         href = href.replace(/\?.*$/, "");
         var method = cws.check.key(form, 'method', "POST");
         method = cws.check.key(args, 'method', method).toUpperCase();
