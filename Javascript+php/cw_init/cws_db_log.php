@@ -9,15 +9,15 @@ function cws_db_set_log(DB $instance, $ignore_mode = false){
         $table = $instance->use_table_log;
         if (!$instance->exists($table)) {
             $sql = "CREATE TABLE `$table` (
-                `ID` " . DB::set_inc() . ",
-                `access_id` " . DB::set_text(60) . ",
-                `ip_address` " . DB::set_text(60) . ",
-                `user_agent` " . DB::set_text() . ",
-                `access_date` " . DB::set_timestamp() . ",
-                `referer` " . DB::set_text(255) . ",
-                `document_root` " . DB::set_text(255) . ",
-                `script_name` " . DB::set_text(255) .
-                DB::set_inc_foot() . "
+                `ID` " . $instance->set_inc() . ",
+                `access_id` " . $instance->set_text(60) . ",
+                `ip_address` " . $instance->set_text(60) . ",
+                `user_agent` " . $instance->set_text() . ",
+                `access_date` " . $instance->set_timestamp() . ",
+                `referer` " . $instance->set_text(255) . ",
+                `document_root` " . $instance->set_text(255) . ",
+                `script_name` " . $instance->set_text(255) .
+                $instance->set_inc_foot() . "
                 )";
             $instance->execute($sql);
         }
