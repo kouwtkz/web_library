@@ -120,6 +120,11 @@ function set_autotag(...$data_list){
                 $tag = 'meta'; $data['name'] = 'description';
                 $data['content'] = get_val($define, 'description', '');
             break;
+            case 'app':
+            case 'mobile':
+                $tag = 'meta'; $data['name'] = 'mobile-web-app-capable';
+                $data['content'] = get_val($define, 'app', 'yes');
+            break;
             case 'og':
                 $title = get_val($define, 'og:title', get_val($define, 'title', ''));
                 $description = get_val($define, 'og:description', get_val($define, 'description', ''));
