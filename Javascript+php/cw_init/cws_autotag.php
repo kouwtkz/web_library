@@ -943,12 +943,27 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
         }, $text);
         return $text;
     };
+    $reply_re = '/(^|\s)@([\w]+)([\:\s])/';
+    $callback_reply = function($m, $text) use ($reply_re) {
+        $text = preg_replace_callback($reply_re, function($m){
+            $id = $m[2];
+            $id_at = '@'.$m[2];
+            $after = $m[3] == ':' ? '' : $m[3];
+            return $m[1].'<a class="reply" href="?id='.$id.'">'.$id_at.'</a>'.$after;
+        }, $text);
+        return $text;
+    };
     $tag_char = '';
     $func_list = array();
+    // $g_optにcb_beforeかcb_afterを定義することで先、後にやる補正を決めることができる
+    // function($m, $text)という形式にすること
+    if (get_val($g_opt, 'cb_before', null) !== null) $func_list[] = $g_opt['cb_before']; 
     if (get_val($g_opt, 'cbf_hatena', true)) $func_list[] = $callback_hatena; 
     if (get_val($g_opt, 'cbf_url', true)) $func_list[] = $callback_url; 
     if (get_val($g_opt, 'cbf_tag', true)) $func_list[] = $callback_tag; 
+    if (get_val($g_opt, 'cbf_reply', true)) $func_list[] = $callback_reply; 
     if (get_val($g_opt, 'cbf_search', true)) $func_list[] = $callback_search; 
+    if (get_val($g_opt, 'cb_after', null) !== null) $func_list[] = $g_opt['cb_after']; 
     $htmlspecialchars = get_val($g_opt, 'htmlspecialchars', true);
     $permission = get_val($g_opt, 'permission', array());
     foreach($arr as $var) {
