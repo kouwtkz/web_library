@@ -871,6 +871,15 @@ function obj2array(obj){
     return Object.keys(obj).map(function (key) {return obj[key]});
 }
 cws.dom = new Object();
+cws.dom.setupFocus = function(element){
+    if (Object.prototype.toString.call(element).match('HTML')) {
+        element.insertAdjacentHTML('beforebegin','<a id="__on_focus_before_dammy_a" href></a>');
+        var dammy = document.getElementById('__on_focus_before_dammy_a');
+        dammy.focus();
+        document.activeElement.blur();
+        dammy.remove();
+    }
+}
 cws.dom.removeChildren = function(elm){ while( elm.firstChild ){ elm.removeChild( elm.firstChild ); } }
 cws.v.global_init = function() {
     if (typeof(cws_cookie_use) === 'boolean') cws.cookie_use = cws_cookie_use;
