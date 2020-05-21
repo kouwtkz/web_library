@@ -27,44 +27,88 @@ class DBI{
     public $exp_err = true;      # SQL実行時にもエラーの代わりに例外を投げるように設定
     public $fth_asc = true;      # デフォルトのフェッチモードを連想配列形式に設定 
     public $err_dump = false;    # エラー時に出力するかどうか
-    public $db_host = "log.db"; # データベースのホスト、ファイル名かリンクかIPアドレス
-    public $db_user = "";    # ログインするユーザー名
-    public $db_pass = "";    # ログインするときのパスワード
-    public $db_name = "";    # 使うデータベースの名前
-    public $db_servise = 'sqlite';  # 使用するデータベース、標準でsqliteにした
-    public $db_charset = "utf8mb4"; # 扱うときの文字型です
-    public $db_collate = "";    # 照合順序(とりあえず)
+    private $db_obj = array(
+        'host' => 'log.db',      # データベースのホスト、ファイル名かリンクかIPアドレス
+        'user' => '',            # ログインするユーザー名
+        'pass' => '',            # ログインするときのパスワード
+        'name' => '',            # 使うデータベースの名前
+        'servise' => 'sqlite',   # 使用するデータベース、標準でsqliteにした
+        'charset' => 'utf8mb4',  # 扱うときの文字型です
+        'collate' => ''          # 照合順序(とりあえず)
+    );
+    private $db_list = null;
+    public $db_active = 0;
     public $pdo = null;         # PDOのコネクトオブジェクト
     public $flag_bind_param = false;    # TrueならbindParam、FalseならbindValueを使う
     # bindValueの方が値は確実に反映されるのでデフォルトでfalse、メモリと確実性の兼ね合い
-    static function set_value_after(&$to_value, &$from_value, $after = null, $after_ins = true){
+    static function set_value_after(&$to_value, &$from_value, $after_ins = true){
         $to_value = $from_value;
         if ($after_ins) $from_value= $after_ins;
         return $to_value;
     }
+    function __get($name){
+        $em = explode('_', $name);
+        switch($em[0]) {
+            case 'db':
+                if (count($em) > 1) {
+                    if ($em[1] == 'count') {
+                        return count($this->db_list);
+                    } else {
+                        return $this->db_list[$this->db_active][$em[1]];
+                    }
+                }
+            break;
+        }
+        return '';
+    }
+    function __set($name, $value){
+        $em = explode('_', $name);
+        switch($em[0]) {
+            case 'db':
+                if (count($em) > 1) {
+                    if ($em[1] == 'list') {
+                        $this->db_list = array();
+                        for ($i = 0; $i < count($value); $i++) {
+                            $obj = $this->db_obj;
+                            foreach ($value[$i] as $lk => $lv) {
+                                $obj[$lk] = $lv;
+                            }
+                            array_push($this->db_list, $obj);
+                        }
+                    } else {
+                        $this->db_list[$this->db_active][$em[1]] = $value;
+                    }
+                }
+            break;
+        }
+    }
     function global_init(){
+        $change_db = false;
+        $local_db_obj = $this->db_obj;
         global $cws_cookie_use, $cws_flag_session;
         global $cws_db_servise, $cws_db_host, $cws_db_name, $cws_db_user, $cws_db_pass;
         global $cws_table_log, $cws_flag_log, $cws_err_dump, $cws_preg_ignore_ip;
         global $cws_access_reboot, $cws_cookie_reboot;
-        if (isset($cws_cookie_use)) { self::set_value_after($this->cookie_use, $cws_cookie_use, null); }
-        if (isset($cws_flag_session)) { self::set_value_after($this->flag_session, $cws_flag_session, null); }
-        if (isset($cws_db_servise)) { self::set_value_after($this->db_host, $cws_db_servise, null); }
-        if (isset($cws_db_host)) { self::set_value_after($this->db_host, $cws_db_host, null); }
-        if (isset($cws_db_name)) { self::set_value_after($this->db_name, $cws_db_name, null); }
-        if (isset($cws_db_user)) { self::set_value_after($this->db_user, $cws_db_user, null); }
-        if (isset($cws_db_pass)) { self::set_value_after($this->db_user, $cws_db_pass, null); }
-        if (isset($cws_table_log)) { self::set_value_after($this->table_log, $cws_table_log, null); }
-        if (isset($cws_flag_log)) { self::set_value_after($this->flag_log, $cws_flag_log, null); }
-        if (isset($cws_err_dump)) { self::set_value_after($this->err_dump, $cws_err_dump, null); }
-        if (isset($cws_preg_ignore_ip)) { self::set_value_after($this->preg_ignore_ip, $cws_preg_ignore_ip, null); }
-        if (isset($cws_access_reboot)) { self::set_value_after($this->access_reboot, $cws_access_reboot, null); }
-        if (isset($cws_cookie_reboot)) { self::set_value_after($this->cookie_reboot, $cws_cookie_reboot, null); }
+        if (isset($cws_cookie_use)) { self::set_value_after($this->cookie_use, $cws_cookie_use); }
+        if (isset($cws_flag_session)) { self::set_value_after($this->flag_session, $cws_flag_session); }
+        if (isset($cws_db_servise)) { $change_db = true; $local_db_obj['servise'] = $cws_db_servise; }
+        if (isset($cws_db_host)) { $change_db = true; $local_db_obj['host'] = $cws_db_host; }
+        if (isset($cws_db_name)) { $change_db = true; $local_db_obj['name'] = $cws_db_name; }
+        if (isset($cws_db_user)) { $change_db = true; $local_db_obj['user'] = $cws_db_user; }
+        if (isset($cws_db_pass)) { $change_db = true; $local_db_obj['pass'] = $cws_db_pass; }
+        if ($change_db) { self::set_value_after($this->db_list[0], $local_db_obj); }
+        if (isset($cws_table_log)) { self::set_value_after($this->table_log, $cws_table_log); }
+        if (isset($cws_flag_log)) { self::set_value_after($this->flag_log, $cws_flag_log); }
+        if (isset($cws_err_dump)) { self::set_value_after($this->err_dump, $cws_err_dump); }
+        if (isset($cws_preg_ignore_ip)) { self::set_value_after($this->preg_ignore_ip, $cws_preg_ignore_ip); }
+        if (isset($cws_access_reboot)) { self::set_value_after($this->access_reboot, $cws_access_reboot); }
+        if (isset($cws_cookie_reboot)) { self::set_value_after($this->cookie_reboot, $cws_cookie_reboot); }
     }
     static function create($global_enable = true){
         return new self($global_enable);
     }
     function __construct($global_enable = true){
+        $this->db_list = array($this->db_obj);
         if ($global_enable) $this->global_init();
     }
     function __destruct() {
@@ -120,32 +164,35 @@ class DB{
             $dbi = $this->dbi;
         else
             $this->dbi = $dbi;
-        $servise = $dbi->db_servise;
-        $host = $dbi->db_host;
-        $dbname = $dbi->db_name;
-        $user=$dbi->db_user;
-        $pass = $dbi->db_pass;
-        $charset = $dbi->db_charset;
-        switch(mb_strtolower($servise)){
-            case 'sqlite': case '0':
-                $cnct = 'sqlite:'.$host;
-                break;
-            case 'mysql': case '1':
-                $cnct = 'mysql:host='.$host.';dbname='.$dbname.';charset='.$charset;
-                break;
-            default: $cnct = null;
-        }
-    
-        if ($cnct!==null) {
-            try{
-                $pdo = new \PDO($cnct, $user, $pass);
-                if ($dbi->exp_err) { $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION); }
-                if ($dbi->fth_asc) { $pdo->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC); }
-            } catch(\Exception $e) {
+        for ($i = 0; $i < $dbi->db_count; $i++) {
+            $dbi->db_active = $i;
+            $servise = $dbi->db_servise;
+            $host = $dbi->db_host;
+            $dbname = $dbi->db_name;
+            $user=$dbi->db_user;
+            $pass = $dbi->db_pass;
+            $charset = $dbi->db_charset;
+            switch(mb_strtolower($servise)){
+                case 'sqlite': case '0':
+                    $cnct = 'sqlite:'.$host;
+                    break;
+                case 'mysql': case '1':
+                    $cnct = 'mysql:host='.$host.';dbname='.$dbname.';charset='.$charset;
+                    break;
+                default: $cnct = null;
+            }
+            if ($cnct!==null) {
+                try{
+                    $pdo = new \PDO($cnct, $user, $pass);
+                    if ($dbi->exp_err) { $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION); }
+                    if ($dbi->fth_asc) { $pdo->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC); }
+                } catch(\Exception $e) {
+                    $pdo = null;
+                }
+            } else {
                 $pdo = null;
             }
-        } else {
-            $pdo = null;
+            if (!is_null($pdo)) break;
         }
         $dbi->pdo = $pdo;
         $this->pdo = $pdo;
@@ -393,6 +440,45 @@ class DB{
         if ($notnull) { $txt .= ' NOT NULL'; }
         $txt .= $add_default;
         return $txt;
+    }
+    function now($localtime = true){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
+        switch(mb_strtolower($servise)){
+            case 'sqlite': case '0':
+                if ($localtime)
+                    return "DATETIME('now', 'localtime')";
+                else
+                    return "DATETIME('now', 'utc')";
+            break;
+            case 'mysql': case '1':
+                return 'NOW()';
+            break;
+            default:
+                return 'NOW()';
+            break;
+        }
+        return '';
+    }
+    function reg_classify($reg_str = '', $like_str = '', $grob_str = ''){
+        $dbi = $this->dbi;
+        $servise = $dbi->db_servise;
+        switch(mb_strtolower($servise)){
+            case 'sqlite': case '0':
+                if ($grob_str !== '')
+                    return array("GLOB", $grob_str);
+                else
+                    return array("LIKE", $like_str);
+            break;
+            case 'mysql': case '1':
+                return array('REGEXP', $like_str);
+                return 'REGEXP';
+            break;
+            default:
+                return array('LIKE', $like_str);
+            break;
+        }
+        return '';
     }
     static function create($dbi = null){
         if (is_null($dbi)) $dbi = new DBI();
