@@ -894,7 +894,7 @@ if (cws.update) {
             var dammy = document.getElementById('__on_focus_before_dammy_a');
             dammy.focus();
             document.activeElement.blur();
-            dammy.remove();
+            dammy.parentElement.removeChild(dammy);
         }
     }
     cws.dom.removeChildren = function(elm){ while( elm.firstChild ){ elm.removeChild( elm.firstChild ); } }
@@ -914,6 +914,16 @@ if (cws.update) {
             setTimeout(function(){
                 window.location.reload();
             }, interval)
+        }
+    }
+    cws.dom.dataSet = function(obj, element_str, data){
+        if (typeof(element_str) !== 'string') element_str = element_str.toString();
+        if (typeof(obj.dataset) === 'undefined') {
+            if (Object.prototype.toString.call(obj).match('HTML')) {
+                obj.setAttribute('data-' + element_str, data)
+            }
+        } else {
+            obj[element_str] = data;
         }
     }
     cws.v.global_init = function() {
