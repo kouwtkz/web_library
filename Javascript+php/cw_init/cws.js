@@ -76,7 +76,6 @@ if (cws.update) {
     cws.v.urlrg = ['!','+','#','$','&','\'','(',')','*',',','/',':',';','=','?','@','[',']'];
     cws.v.re = new Object();
     cws.v.re.time = /\d+[\-\/\:]\d+/;
-    
     cws.get = new Object();
     // デフォルトで今日の日付
     cws.get.date = function(format_str, date){
@@ -818,7 +817,6 @@ if (cws.update) {
             return null;
         }
     }
-    
     cws.storage = new Object();
     cws.storage.out = function(key, value) {
         key = cws.check.nullvar(key, 'key');
@@ -913,7 +911,7 @@ if (cws.update) {
         if (cws.check.exists(cws.v.request, reload_target)) {
             var interval = parseInt(parseFloat(cws.check.key(cws.v.request, reload_target, 0)) * 1000);
             if (interval < 1000) interval = 1000;
-            setTimeout(()=>{
+            setTimeout(function(){
                 window.location.reload();
             }, interval)
         }
@@ -932,7 +930,7 @@ if (cws.update) {
             window.location.href = href;
         }
     };
-    window.addEventListener( 'load', () => {
+    window.addEventListener( 'load', function(){
         var cws = window.cws;
         // Auto Reload Check
         cws.dom.autoreload();
