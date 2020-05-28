@@ -471,7 +471,7 @@ class DB{
                     return array("LIKE", $like_str);
             break;
             case 'mysql': case '1':
-                return array('REGEXP', $like_str);
+                return array('REGEXP', $reg_str);
                 return 'REGEXP';
             break;
             default:
