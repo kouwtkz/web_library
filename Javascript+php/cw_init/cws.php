@@ -58,11 +58,6 @@ class server{
     }
 }
 $cws = new server();
-// ポートも取得するので必要
-function get_domain(string $url){
-    preg_match('/\/\/.*?\//', $url, $base);
-    return (count($base)===0)?"":mb_substr($base[0],2,-1);
-}
 function get_basehost(string $url){
     preg_match('/^.*?\/\/.*?\//', $url, $base);
     return (count($base)===0)?"":mb_substr($base[0],0,-1);

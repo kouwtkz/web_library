@@ -82,7 +82,7 @@ class DBI{
             break;
         }
     }
-    function global_init(){
+    function global_init($changeable_db = true){
         $change_db = false;
         $local_db_obj = $this->db_obj;
         global $cws_cookie_use, $cws_flag_session;
@@ -91,12 +91,14 @@ class DBI{
         global $cws_access_reboot, $cws_cookie_reboot;
         if (isset($cws_cookie_use)) { self::set_value_after($this->cookie_use, $cws_cookie_use); }
         if (isset($cws_flag_session)) { self::set_value_after($this->flag_session, $cws_flag_session); }
-        if (isset($cws_db_servise)) { $change_db = true; $local_db_obj['servise'] = $cws_db_servise; }
-        if (isset($cws_db_host)) { $change_db = true; $local_db_obj['host'] = $cws_db_host; }
-        if (isset($cws_db_name)) { $change_db = true; $local_db_obj['name'] = $cws_db_name; }
-        if (isset($cws_db_user)) { $change_db = true; $local_db_obj['user'] = $cws_db_user; }
-        if (isset($cws_db_pass)) { $change_db = true; $local_db_obj['pass'] = $cws_db_pass; }
-        if ($change_db) { self::set_value_after($this->db_list[0], $local_db_obj); }
+        if ($changeable_db) {
+            if (isset($cws_db_servise)) { $change_db = true; $local_db_obj['servise'] = $cws_db_servise; }
+            if (isset($cws_db_host)) { $change_db = true; $local_db_obj['host'] = $cws_db_host; }
+            if (isset($cws_db_name)) { $change_db = true; $local_db_obj['name'] = $cws_db_name; }
+            if (isset($cws_db_user)) { $change_db = true; $local_db_obj['user'] = $cws_db_user; }
+            if (isset($cws_db_pass)) { $change_db = true; $local_db_obj['pass'] = $cws_db_pass; }
+            if ($change_db) { self::set_value_after($this->db_list[0], $local_db_obj); }
+        }
         if (isset($cws_table_log)) { self::set_value_after($this->table_log, $cws_table_log); }
         if (isset($cws_flag_log)) { self::set_value_after($this->flag_log, $cws_flag_log); }
         if (isset($cws_err_dump)) { self::set_value_after($this->err_dump, $cws_err_dump); }
@@ -104,12 +106,33 @@ class DBI{
         if (isset($cws_access_reboot)) { self::set_value_after($this->access_reboot, $cws_access_reboot); }
         if (isset($cws_cookie_reboot)) { self::set_value_after($this->cookie_reboot, $cws_cookie_reboot); }
     }
-    static function create($global_enable = true){
-        return new self($global_enable);
+    static function create(...$param){
+        return new self($param);
     }
-    function __construct($global_enable = true){
-        $this->db_list = array($this->db_obj);
-        if ($global_enable) $this->global_init();
+    function __construct(...$param){
+        $global_enable = true;
+        $changeable_db = true;
+        $local_db_obj = $this->db_obj;
+        $this->construct_loop($param, $global_enable, $local_db_obj, $changeable_db);
+        $this->db_list = array($local_db_obj);
+        if ($global_enable) $this->global_init($changeable_db);
+    }
+    private function construct_loop(&$param, &$global_enable, &$local_db_obj, &$changeable_db) {
+        foreach ($param as $value) {
+            switch (gettype($value)) {
+                case 'boolean':
+                    $global_enable = $value;
+                break;
+                case 'array':
+                    if (isset($value[0])) {
+                        $this->construct_loop($param, $global_enable, $local_db_obj, $changeable_db);
+                    } else {
+                        $local_db_obj = array_merge($local_db_obj, $value);
+                        $changeable_db = false;
+                    }
+                break;
+            }
+        }
     }
     function __destruct() {
         $this->pdo = null;
@@ -251,18 +274,22 @@ class DB{
         $this->connect($dbi);
         $this->session_begin();
     }
+
+    function set_primary($not_null = false){
+        return ($not_null ? ' NOT NULL' : '') . ' PRIMARY KEY';
+    }
     function set_inc($primary = true){
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
                 $txt = 'INTEGER ';
-                if ($primary) $txt .= ' NOT NULL PRIMARY KEY';
+                if ($primary) $txt .= $this->set_primary(true);
                 $txt .= ' AUTOINCREMENT';
                 break;
             case 'mysql': case '1':
                 $txt = 'INT';
-                if ($primary) $txt .= ' NOT NULL PRIMARY KEY';
+                if ($primary) $txt .= $this->set_primary(true);
                 $txt .= ' AUTO_INCREMENT';
                 break;
             default:
@@ -490,6 +517,10 @@ class DB{
     }
     function __destruct() {
         $this->disconnect();
+    }
+    // XSS対策用
+    static function h($s){
+        return htmlspecialchars($s, ENT_QUOTES, 'utf-8');
     }
 }
 ?>
