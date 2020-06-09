@@ -925,10 +925,11 @@ if (cws.update) {
             obj[element_str] = data;
         }
     }
+    cws.dom.smooth_flag = false;
     cws.dom.hashScroll = function(hash, smooth_flag, timeout){
         hash = cws.check.nullvar(hash, location.hash.slice(1));
         if (hash == '') return;
-        smooth_flag = cws.check.nullvar(smooth_flag, false);
+        smooth_flag = cws.check.nullvar(smooth_flag, cws.dom.smooth_flag);
         timeout = cws.check.nullvar(timeout, 0);
         var elm = document.querySelector('[name="' + hash + '"]');
         var options = {top: elm.offsetTop}
