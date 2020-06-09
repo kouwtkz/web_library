@@ -919,17 +919,22 @@ if (cws.update) {
         if (typeof(element_str) !== 'string') element_str = element_str.toString();
         if (typeof(obj.dataset) === 'undefined') {
             if (Object.prototype.toString.call(obj).match('HTML')) {
-                obj.setAttribute('data-' + element_str, data)
+                obj.setAttribute('data-' + element_str, data);
             }
         } else {
             obj[element_str] = data;
         }
     }
-    cws.dom.hashScroll = function(hash){
-        var hash = cws.check.nullvar(hash, location.hash.slice(1));
+    cws.dom.hashScroll = function(hash, smooth_flag, timeout){
+        hash = cws.check.nullvar(hash, location.hash.slice(1));
+        if (hash == '') return;
+        smooth_flag = cws.check.nullvar(smooth_flag, false);
+        timeout = cws.check.nullvar(timeout, 0);
         var elm = document.querySelector('[name="' + hash + '"]');
+        var options = {top: elm.offsetTop}
+        if (smooth_flag) options.behavior = 'smooth';
         if (elm !== null) {
-            window.scrollTo(0,elm.offsetTop);
+            setTimeout(function(){ window.scrollTo(options); }, timeout);
         }
     }
     

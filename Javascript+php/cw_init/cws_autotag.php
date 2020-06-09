@@ -1028,6 +1028,10 @@ class AutoLink {
         }
         return $this->while;
     }
+    public function reset(){
+        $this->i = -1;
+        return $this->while = true;
+    }
     static function create($arr = array(), string $key_text = 'text', $q = null, $g_opt = null){
         if (is_null($g_opt)) $g_opt = self::$default_g_opt;
         return new self($arr, $key_text, $q, $g_opt);
