@@ -157,14 +157,13 @@ if (cws.update) {
             return '';
         }
     }
-    
     // URLの?以降を取得する関数、更に取得したものを定義する
     cws.get.request = function(href, auto_newDate) {
         href = cws.check.def(href, location.href);
         if (typeof(href) === 'object') return href;
         auto_newDate = Boolean(cws.check.def(auto_newDate, true));
         var arg = new Object();
-        var spl = href.split('?');
+        var spl = href.split('#')[0].split('?');
         if (spl.length === 1) return new Object();
         var qry = spl[spl.length - 1];
         var pair = qry.split('&');
