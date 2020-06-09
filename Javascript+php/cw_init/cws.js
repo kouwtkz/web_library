@@ -531,7 +531,7 @@ if (cws.update) {
     cws.to.setQuery = function(array_list, path) {
         array_list = cws.check.def(array_list, new Object());
         path = cws.check.def(path, cws.v.href);
-        var _path = path.replace(/\?.*$/, "");
+        var _path = path.replace(/[\?\#].*$/, "");
         var q = cws.to.querystr(cws.to.merge(cws.get.request(path), array_list), true);
         return _path + ((q === '') ? '' : '?') + q;
     }
@@ -925,6 +925,14 @@ if (cws.update) {
             obj[element_str] = data;
         }
     }
+    cws.dom.hashScroll = function(hash){
+        var hash = cws.check.nullvar(hash, location.hash.slice(1));
+        var elm = document.querySelector('[name="' + hash + '"]');
+        if (elm !== null) {
+            window.scrollTo(0,elm.offsetTop);
+        }
+    }
+    
     cws.v.global_init = function() {
         if (typeof(cws_cookie_use) === 'boolean') cws.cookie_use = cws_cookie_use;
     }

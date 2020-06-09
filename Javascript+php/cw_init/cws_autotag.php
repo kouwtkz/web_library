@@ -984,6 +984,8 @@ class AutoLink {
     private $length = 0;
     private $while = false;
     public function get_index(){return $i;}
+    function get_length() { return $this->length; }
+    function is_last() { return ($this->length-1) === $this->i; }
     public function get_while() { return $while; }
     private $arr = null;
     private $key_text = 'text';
