@@ -32,6 +32,7 @@ class server{
         $t->method = (count($_REQUEST) === 0) ? '' : $_SERVER['REQUEST_METHOD'];
         $t->scheme = get_val($_SERVER['REQUEST_SCHEME'], '');
         $t->basehost = $t->scheme.'://'.get_val($_SERVER['HTTP_HOST'], '');
+        $t->domain = get_domain('', false);
         $t->path = preg_replace("/\?.+$/",'',get_val($_SERVER['REQUEST_URI'], ''));
         $t->url = $t->basehost.$t->path;
         $t->url_dir = $t->basehost.get_dir($t->path);

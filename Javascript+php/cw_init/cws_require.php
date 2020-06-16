@@ -32,15 +32,25 @@ function get_docpath(string $path = '', bool $return_blank = false) {
         return $return_blank ? '' : $path;
     }
 }
-// ドメイン名の取得(ポート含む)
-function get_domain(string $str = '') {
-    if (filter_var($str, FILTER_VALIDATE_EMAIL)) {
-        return explode('@', $str, 2)[1];
+// ドメイン名の取得(ポートは引数次第)
+function get_domain(string $str = '', $port = false) {
+    $ret = '';
+    if ($str !== '' && filter_var($str, FILTER_VALIDATE_EMAIL)) {
+        $ret = explode('@', $str, 2)[1];
     } else {
-        preg_match('/\/\/.*?\//', $str, $base);
-        return (count($base)===0)?'':mb_substr($base[0],2,-1);
+        if ($str !== '') {
+            preg_match('/\/\/.*?\//', $str, $base);
+            $ret = (count($base)===0)?'':mb_substr($base[0],2,-1);
+        } else {
+            $ret = $_SERVER['HTTP_HOST'];
+        }
     }
+    if (!$port) {
+        $ret = explode(':', $ret, 2)[0];
+    }
+    return $ret;
 }
+
 function debug(bool $flag = true) {
     ini_set('display_errors', $flag?"On":"Off");
 }
