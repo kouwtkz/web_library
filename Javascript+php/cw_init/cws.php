@@ -365,4 +365,49 @@ function auto_mkdir($dir) {
         if (!file_exists($dir_s)) mkdir($dir_s);
     }
 }
+function auto_uripath($doc_path = null, $request_uri = null, $out_dir = false) {
+    if (!is_null($doc_path)) {
+        switch(gettype($doc_path)) {
+            case 'array':
+                if (isset($doc_path['DOCUMENT_ROOT'])) {
+                    $doc_path = $doc_path['DOCUMENT_ROOT'];
+                } else {
+                    $doc_path = $_SERVER['DOCUMENT_ROOT'];
+                }
+            break;
+            case 'string':
+            break;
+            default:
+                $doc_path = null;
+            break;
+        }
+    }
+    if (is_null($request_uri)) {
+        $request_uri = $_SERVER['REQUEST_URI'];
+    }
+    $doc_isnull = is_null($doc_path);
+
+    $sv_url = explode('?', $request_uri, 2)[0];
+
+    if (substr($sv_url, -1) !== '/' || $out_dir) {
+        $index_list = array('');
+    } else {
+        $index_list = array(
+            'index.php', 'index.html', 'index.htm', 'index.py', 'index.cgi'
+        );
+    }
+    $sv_jumpurl = '';
+    foreach ($index_list as $index_name) {
+        if ($doc_isnull) {
+            $sv_str = get_docpath($sv_url.$index_name);
+        } else {
+            $sv_str = $doc_path.$sv_url.$index_name;
+        }
+        if (file_exists($sv_str)) {
+            $sv_jumpurl = $sv_str;
+            break;
+        }
+    }
+    return $sv_jumpurl;
+}
 ?>
