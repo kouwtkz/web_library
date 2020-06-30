@@ -943,7 +943,7 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
         }, $text);
         return $text;
     };
-    $reply_re = '/(^|\s)@([\w]+)([\:\s])/';
+    $reply_re = '/(^|\s)@(\w+)([\:]?)/';
     $callback_reply = function($m, $text) use ($reply_re) {
         $text = preg_replace_callback($reply_re, function($m){
             $id = $m[2];
