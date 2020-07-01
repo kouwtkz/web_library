@@ -1,7 +1,7 @@
 if (typeof(window.cws) === 'undefined') window.cws = new Object();
 // IEは10以降を対応とする
 (function() {
-    var vertion = '2.4.0';
+    var vertion = '2.4.1';
     cws.update = false;
     if (typeof(cws.vertion) === 'undefined') cws.vertion = '0';
     if (vertion > cws.vertion) {
