@@ -169,16 +169,26 @@ class DB{
         $result = ($sth !== null) ? $sth->fetchAll() : array();
         return $result;
     }
-    function exists($table, $column = "") {
+    function exists($table, $column = "", $value = null) {
+        $value_mode = false;
         if ($column === "") {
             $sql = "SELECT 1 FROM `$table` LIMIT 1;";
         } else {
-            $sql = "SELECT `$column` FROM `$table` LIMIT 1;";
+            if (is_null($value)) {
+                $sql = "SELECT `$column` FROM `$table` LIMIT 1;";
+            } else {
+                $value_mode = true;
+                $sql = "SELECT count(*) AS `count` FROM `$table` WHERE `$column` = ? LIMIT 1;";
+            }
         }
         $dbi = $this->dbi;
         $tmp_err_dump = $dbi->err_dump;
         $dbi->err_dump = false;
-        $result = $this->execute($sql);
+        if ($value_mode) {
+            $result = intval($this->execute($sql, $value)->fetch()['count']) > 0;
+        } else {
+            $result = $this->execute($sql);
+        }
         $dbi->err_dump = $tmp_err_dump;
         return (bool)$result;
     }
@@ -312,7 +322,14 @@ class DB{
         }
         return $txt;
     }
-    function set_bit($bits = 1){
+    function set_bit($args = null, $default = null){
+        if (is_null($args)) $args = array();
+        if (is_array($args)) {
+            $bits = isset($args['size']) ? $args['size'] : 1;
+            $default = isset($args['default']) ? $args['default'] : $default;
+        } else {
+            $bits = 1;
+        }
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
@@ -329,9 +346,20 @@ class DB{
             default:
                 $txt = 'INTEGER';
         }
+        if (!is_null($default)) {
+            $default = intval($default);
+            $txt .= " DEFAULT $default";
+        }
         return $txt;
     }
-    function set_int($int_size = 4){
+    function set_int($args = null, $default = null){
+        if (is_null($args)) $args = array();
+        if (is_array($args)) {
+            $int_size = isset($args['size']) ? $args['size'] : 4;
+            $default = isset($args['default']) ? $args['default'] : $default;
+        } else {
+            $int_size = 4;
+        }
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
@@ -354,9 +382,20 @@ class DB{
             default:
                 $txt = 'INTEGER';
         }
+        if (!is_null($default)) {
+            $default = intval($default);
+            $txt .= " DEFAULT $default";
+        }
         return $txt;
     }
-    function set_real($float_size = 8){
+    function set_real($args = null, $default = null){
+        if (is_null($args)) $args = array();
+        if (is_array($args)) {
+            $float_size = isset($args['size']) ? $args['size'] : 8;
+            $default = isset($args['default']) ? $args['default'] : $default;
+        } else {
+            $float_size = 8;
+        }
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
@@ -373,9 +412,20 @@ class DB{
             default:
                 $txt = 'FLOAT';
         }
+        if (!is_null($default)) {
+            $default = floatval($default);
+            $txt .= " DEFAULT $default";
+        }
         return $txt;
     }
-    function set_numeric($int_size = 4){
+    function set_numeric($args = null, $default = null){
+        if (is_null($args)) $args = array();
+        if (is_array($args)) {
+            $int_size = isset($args['size']) ? $args['size'] : 8;
+            $default = isset($args['default']) ? $args['default'] : $default;
+        } else {
+            $int_size = 4;
+        }
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
@@ -384,9 +434,20 @@ class DB{
             default:
             $txt = 'NUMERIC';
         }
+        if (!is_null($default)) {
+            $default = floatval($default);
+            $txt .= " DEFAULT $default";
+        }
         return $txt;
     }
-    function set_text($len = -2){
+    function set_text($args = null, $default = null){
+        if (is_null($args)) $args = array();
+        if (is_array($args)) {
+            $len = isset($args['size']) ? $args['size'] : -2;
+            $default = isset($args['default']) ? $args['default'] : $default;
+        } else {
+            $len = -2;
+        }
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
@@ -405,9 +466,19 @@ class DB{
             default:
                 $txt = 'TEXT';
         }
+        if (!is_null($default)) {
+            $txt .= " DEFAULT '$default'";
+        }
         return $txt;
     }
-    function set_brob($len = -2){
+    function set_brob($args = null, $default = null){
+        if (is_null($args)) $args = array();
+        if (is_array($args)) {
+            $len = isset($args['size']) ? $args['size'] : -2;
+            $default = isset($args['default']) ? $args['default'] : $default;
+        } else {
+            $len = -2;
+        }
         $dbi = $this->dbi;
         $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
@@ -429,6 +500,9 @@ class DB{
                 break;
             default:
                 $txt = 'NONE';
+        }
+        if (!is_null($default)) {
+            $txt .= " DEFAULT '$default'";
         }
         return $txt;
     }

@@ -37,16 +37,17 @@ function get_domain(string $str = '', $port = false) {
     $ret = '';
     if ($str !== '' && filter_var($str, FILTER_VALIDATE_EMAIL)) {
         $ret = explode('@', $str, 2)[1];
+        if (!$port) $ret = explode(':', $ret, 2)[0];
     } else {
         if ($str !== '') {
-            preg_match('/\/\/.*?\//', $str, $base);
-            $ret = (count($base)===0)?'':mb_substr($base[0],2,-1);
+            if (preg_match('/(\w+\:\/\/\/?|^\s*)(\[[^\]]+\]|[\w.]+|[\:\w]*)([\:\d]*)/', $str, $m)) {
+                $ret = $m[2] . ($port ? $m[3] : '');
+            } else {
+                $ret = '';
+            }
         } else {
             $ret = $_SERVER['HTTP_HOST'];
         }
-    }
-    if (!$port) {
-        $ret = explode(':', $ret, 2)[0];
     }
     return $ret;
 }
