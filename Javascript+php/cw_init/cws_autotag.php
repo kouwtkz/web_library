@@ -567,13 +567,23 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
 }
 // ハッシュタグの自動リンクとはてな記法の自動リンクとハイライトの自動付与
 // ここで無名関数を後で入れることでループが完成する
+// デフォルトでは結果として生成されたHTMLを出力する
 // set_autolink($arr, 'text', $_REQUEST['q']);
-function set_autolink($arr = array(), string $arr_text = 'text', $q = null, $loop_func = null,
-$g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
+function set_autolink($arr = array(), $arg_g_opt = array(), $q = null, $loop_func = null){
     global $callback_tagesc, $cws;
+    $g_opt = array('arr_text' => 'text', 'autoplay' => false, 'htmlspecialchars' => true);
+    if (!\is_null($arg_g_opt)){
+        if (\is_array($arg_g_opt)) {
+            $g_opt = array_merge($g_opt, $arg_g_opt);
+        } else {
+            $g_opt['arr_text'] = $arg_g_opt;
+        }
+    }
+    $arr_text = $g_opt['arr_text'];
     if (!\is_array($arr)) $arr = array($arr_text => $arr);
     $q = get_request($q);
-    if ($loop_func === null) $loop_func = function($text, $var){ \var_dump($var);\var_dump($text); };
+    $out_html_list = array();
+    if ($loop_func === null) $loop_func = function($text, $var) use (&$out_html_list) { $out_html_list[] = $text; };
     $_q = !empty($q);
     $_q_str = $_q ? $q : '';
     $_q_str_l = (preg_match('/^\s*$/', $_q_str) ? array() : explode(' ', $_q_str));
@@ -955,15 +965,27 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
     };
     $tag_char = '';
     $func_list = array();
+    
     // $g_optにcb_beforeかcb_afterを定義することで先、後にやる補正を決めることができる
     // function($m, $text)という形式にすること
     if (get_val($g_opt, 'cb_before', null) !== null) $func_list[] = $g_opt['cb_before']; 
-    if (get_val($g_opt, 'cbf_hatena', true)) $func_list[] = $callback_hatena; 
-    if (get_val($g_opt, 'cbf_url', true)) $func_list[] = $callback_url; 
-    if (get_val($g_opt, 'cbf_tag', true)) $func_list[] = $callback_tag; 
-    if (get_val($g_opt, 'cbf_reply', true)) $func_list[] = $callback_reply; 
-    if (get_val($g_opt, 'cbf_search', true)) $func_list[] = $callback_search; 
+    
+    $cb_bitnot_hatena = get_val($g_opt, 'cbn_hatena', false);
+    $cb_bitnot_url = get_val($g_opt, 'cbn_url', false);
+    $cb_bitnot_htnurl = true && !$cb_bitnot_hatena && !$cb_bitnot_url;
+
+    $cb_bit_default_hatena = true && !$cb_bitnot_url;
+    if (get_val($g_opt, 'cbf_hatena', $cb_bit_default_hatena)) $func_list[] = $callback_hatena; 
+
+    $cb_bit_default_url = true && !$cb_bitnot_hatena;
+    if (get_val($g_opt, 'cbf_url', $cb_bit_default_url)) $func_list[] = $callback_url; 
+
+    if (get_val($g_opt, 'cbf_tag', $cb_bitnot_htnurl)) $func_list[] = $callback_tag; 
+    if (get_val($g_opt, 'cbf_reply', $cb_bitnot_htnurl)) $func_list[] = $callback_reply; 
+    if (get_val($g_opt, 'cbf_search', $cb_bitnot_htnurl)) $func_list[] = $callback_search; 
+
     if (get_val($g_opt, 'cb_after', null) !== null) $func_list[] = $g_opt['cb_after']; 
+
     $htmlspecialchars = get_val($g_opt, 'htmlspecialchars', true);
     $permission = get_val($g_opt, 'permission', array());
     foreach($arr as $var) {
@@ -975,6 +997,7 @@ $g_opt = array('autoplay'=>false, 'htmlspecialchars' => true)){
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $loop_func($text, $var);
     }
+    return $out_html_list;
 }
 // set_autolinkのクラス版、ループは-1から開始するため、
 // while($autolink->next()){}でループを回すことができます
@@ -996,8 +1019,8 @@ class AutoLink {
     function get_value() { return $this->arr[$this->i]; }
     function set_autolink() {
         $this_text = &$this->text;
-        set_autolink(array($this->arr[$this->i]), $this->key_text, $this->q,
-        function($text, $var) use (&$this_text) { $this_text = $text; }, $this->g_opt);
+        set_autolink(array($this->arr[$this->i]), $this->g_opt, $this->q,
+        function($text, $var) use (&$this_text) { $this_text = $text; });
     }
     function set_arr($array = array()) { if (!is_array($array)) {
         $array = array($key_text => $array);}
@@ -1042,6 +1065,7 @@ class AutoLink {
         $this->q = get_request($q, $this->key_q);
         if (is_null($g_opt)) $g_opt = self::$default_g_opt;
         $this->g_opt = $g_opt;
+        $this->g_opt['arr_text'] = $this->key_text;
         $this->i = -1;
     }
     function __destruct() {
