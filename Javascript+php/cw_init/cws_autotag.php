@@ -120,16 +120,50 @@ function set_autotag(...$data_list){
                 $tag = 'meta'; $data['name'] = 'description';
                 $data['content'] = get_val($define, 'description', '');
             break;
+            case 'manifest':
+                $tag = 'link'; $data['rel'] = 'manifest';
+                $data['href'] = get_val($define, 'manifest', '/manifest.json');
+            break;
+            case 'theme': case 'theme-color':
+                $tag = 'meta'; $data['name'] = 'theme-color';
+                $data['content'] = get_val($define, 'theme-color', '#FFF');
+            break;
+            case 'sw':
+                $tag = 'script'; $data['type'] = 'text';
+                $data['type'] = 'text/javascript';
+                $url = get_val($define, 'sw', null);
+                $scope = get_val($define, 'sw-scope', null);
+                $scope = is_null($scope) ? '' : ",{scope:'$scope'}";
+                if (is_null($url)) {
+                    $url = get_val($define, 'sw-url', '/sw.js');
+                    $data['inner'] = "if('serviceWorker' in navigator){"
+                        ."addEventListener('load', function(){navigator.serviceWorker.register('$url'$scope).then(function(){console.log('Service Worker Registered');});});}";
+                } else {
+                    $data['src'] = $url;
+                }
+            break;
             case 'app':
             case 'mobile':
-                $tag = 'meta'; $data['name'] = 'mobile-web-app-capable';
-                $data['content'] = get_val($define, 'app', 'yes');
+                $app_title = get_val($define, array('app-title', 'title'), null);
+                $app_image = get_val($define, array('app-icon', 'icon', 'image'), null);
+                $local_set(array(
+                    array('tag' => 'meta', 'name' => 'mobile-web-app-capable',
+                        'content' => get_val($define, 'app', 'yes')),
+                    isset($app_title) ? array('tag' => 'meta',
+                        'name' => 'apple-mobile-web-app-title', 'content' => $app_title) : null,
+                    isset($app_image) ? array('tag' => 'meta',
+                        'name' => 'apple-touch-icon', 'content' => $app_image) : null,
+                    ), $opt);
+            break;
+            case 'app-config':
+                $tag = 'meta'; $data['name'] = 'msapplication-config';
+                $data['content'] = get_val($define, array('app-config', 'icon', 'image'), '');
             break;
             case 'og':
-                $title = get_val($define, 'og:title', get_val($define, 'title', ''));
-                $description = get_val($define, 'og:description', get_val($define, 'description', ''));
-                $url = get_val($define, 'og:url', get_val($define, 'url', null));
-                $image = get_val($define, 'og:image', get_val($define, 'image', null));
+                $title = get_val($define, array('og:title', 'title'), '');
+                $description = get_val($define, array('og:description', 'description'), '');
+                $url = get_val($define, array('og:url', 'url'), null);
+                $image = get_val($define, array('og:image', 'image'), null);
                 $local_set(array(
                     array('tag' => 'meta', 'property' => 'og:title', 'content' => $title),
                     array('tag' => 'meta', 'property' => 'og:description', 'content' => $description),
@@ -139,9 +173,9 @@ function set_autotag(...$data_list){
                 return;
             break;
             case 'twitter':
-                $card = get_val($define, 'twitter:card', get_val($define, 'card', 'summary'));
-                $site = get_val($define, 'twitter:site', get_val($define, 'site', ''));
-                $creator = get_val($define, 'twitter:creator', get_val($define, 'creator', ''));
+                $card = get_val($define, array('twitter:card', 'card'), 'summary');
+                $site = get_val($define, array('twitter:site', 'site'), '');
+                $creator = get_val($define, array('twitter:creator', 'creator'), '');
                 $local_set(array(
                     array('tag' => 'meta', 'property' => 'twitter:card', 'content' => $card),
                     array('tag' => 'meta', 'property' => 'twitter:site', 'content' => $site),
