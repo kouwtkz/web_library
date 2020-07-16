@@ -121,25 +121,29 @@ function set_autotag(...$data_list){
                 $data['content'] = get_val($define, 'description', '');
             break;
             case 'manifest':
-                $tag = 'link'; $data['rel'] = 'manifest';
-                $data['href'] = get_val($define, 'manifest', '/manifest.json');
+                if (get_val($define, 'sw_flag', true)) {
+                    $tag = 'link'; $data['rel'] = 'manifest';
+                    $data['href'] = get_val($define, 'manifest', '/manifest.json');
+                }
             break;
             case 'theme': case 'theme-color':
                 $tag = 'meta'; $data['name'] = 'theme-color';
                 $data['content'] = get_val($define, 'theme-color', '#FFF');
             break;
             case 'sw':
-                $tag = 'script'; $data['type'] = 'text';
-                $data['type'] = 'text/javascript';
-                $url = get_val($define, 'sw', null);
-                $scope = get_val($define, 'sw-scope', null);
-                $scope = is_null($scope) ? '' : ",{scope:'$scope'}";
-                if (is_null($url)) {
-                    $url = get_val($define, 'sw-url', '/sw.js');
-                    $data['inner'] = "if('serviceWorker' in navigator){"
-                        ."addEventListener('load', function(){navigator.serviceWorker.register('$url'$scope).then(function(){console.log('Service Worker Registered');});});}";
-                } else {
-                    $data['src'] = $url;
+                if (get_val($define, 'sw_flag', true)) {
+                    $tag = 'script'; $data['type'] = 'text';
+                    $data['type'] = 'text/javascript';
+                    $url = get_val($define, 'sw', null);
+                    $scope = get_val($define, 'sw-scope', null);
+                    $scope = is_null($scope) ? '' : ",{scope:'$scope'}";
+                    if (is_null($url)) {
+                        $url = get_val($define, 'sw-url', '/sw.js');
+                        $data['inner'] = "if('serviceWorker' in navigator){"
+                            ."addEventListener('load', function(){navigator.serviceWorker.register('$url'$scope).then(function(){console.log('Service Worker Registered');});});}";
+                    } else {
+                        $data['src'] = $url;
+                    }
                 }
             break;
             case 'app':
@@ -162,7 +166,7 @@ function set_autotag(...$data_list){
             case 'og':
                 $title = get_val($define, array('og:title', 'title'), '');
                 $description = get_val($define, array('og:description', 'description'), '');
-                $url = get_val($define, array('og:url', 'url'), null);
+                $url = get_val($define, array('og:url', 'url'), $_SERVER['REQUEST_URI']);
                 $image = get_val($define, array('og:image', 'image'), null);
                 $local_set(array(
                     array('tag' => 'meta', 'property' => 'og:title', 'content' => $title),
