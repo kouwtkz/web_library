@@ -146,10 +146,13 @@ function set_autotag(...$data_list){
                     }
                 }
             break;
+            case 'icon':
+                $tag = 'link'; $rel = 'icon'; $src = get_val($define, 'icon', '/favicon.ico');
+            break;
             case 'app':
             case 'mobile':
                 $app_title = get_val($define, array('app-title', 'title'), null);
-                $app_image = get_val($define, array('app-icon', 'icon', 'image'), null);
+                $app_image = get_val($define, array('app-icon', 'image', 'icon'), null);
                 $local_set(array(
                     array('tag' => 'meta', 'name' => 'mobile-web-app-capable',
                         'content' => get_val($define, 'app', 'yes')),
@@ -161,7 +164,7 @@ function set_autotag(...$data_list){
             break;
             case 'app-config':
                 $tag = 'meta'; $data['name'] = 'msapplication-config';
-                $data['content'] = get_val($define, array('app-config', 'icon', 'image'), '');
+                $data['content'] = get_val($define, array('app-config', 'image', 'icon'), '');
             break;
             case 'og':
                 $title = get_val($define, array('og:title', 'title'), '');
