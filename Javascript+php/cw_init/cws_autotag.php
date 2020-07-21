@@ -368,27 +368,6 @@ function set_autotag(...$data_list){
     $local_set($data_list, $default_opt);
     return $out_list;
 }
-
-function get_request($q = null, $r_default = 'q'){
-    if ($q === null){
-        $q = isset($_REQUEST[$r_default]) ? $_REQUEST[$r_default] : '';
-    } elseif (\is_array($q)) {
-        $cnt = count($q);
-        if ($cnt > 0) {
-            $cur = current($q);
-            if (\is_array($cur)) {
-                $next = next($q);
-                $q = isset($cur[$next]) ? $cur[$next] : '';
-            } else {
-                $cur = current($q);
-                $q = isset($_REQUEST[$cur]) ? $_REQUEST[$cur] : '';
-            }
-        } else {
-            $q = isset($_REQUEST[$r_default]) ? $_REQUEST[$r_default] : '';
-        }
-    }
-    return $q;
-}
 function convert_to_br(string $str){
     return str_replace("\n", '<br/>', $str);
 }
@@ -610,7 +589,7 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
 // ここで無名関数を後で入れることでループが完成する
 // デフォルトでは結果として生成されたHTMLを出力する
 // set_autolink($arr, 'text', $_REQUEST['q']);
-function set_autolink($arr = array(), $arg_g_opt = array(), $q = null, $loop_func = null){
+function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     global $callback_tagesc, $cws;
     $g_opt = array('arr_text' => 'text', 'autoplay' => false, 'htmlspecialchars' => true);
     if (!\is_null($arg_g_opt)){
@@ -622,14 +601,18 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $q = null, $loop_fun
     }
     $arr_text = $g_opt['arr_text'];
     if (!\is_array($arr)) $arr = array($arr_text => $arr);
-    $q = get_request($q);
+    $key_q = get_val($g_opt, 'key_q', null);
+    $request_q = get_val($g_opt, 'q', get_val($_REQUEST, $key_q, ''));
+    $highlight_q =get_val($g_opt, 'highlight_q', $request_q); 
     $out_html_list = array();
     if ($loop_func === null) $loop_func = function($text, $var) use (&$out_html_list) { $out_html_list[] = $text; };
-    $_q = !empty($q);
-    $_q_str = $_q ? $q : '';
-    $_q_str_l = (preg_match('/^\s*$/', $_q_str) ? array() : explode(' ', $_q_str));
+    $_q_str = $request_q;
+    $_q = !empty($request_q);
+    $_hq = !empty($highlight_q);
+    $_hq_str = $_hq ? $highlight_q : '';
+    $_q_str_l = (preg_match('/^\s*$/', $_hq_str) ? array() : explode(' ', $_hq_str));
     $_q_str_l_f = array_flip($_q_str_l);
-    $_q_str_e = $_q ? urlencode($_q_str) : '';
+    $_q_str_e = urlencode($_q_str);
     $_q_join = '?q=' . ($_q ? $_q_str_e.'+' : '');
     $_q_str_l_s = array();
     $_q_str_l_u = array();
@@ -643,11 +626,11 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $q = null, $loop_fun
     $get_mult_opt = function($key, $default) use (&$opt, &$g_opt) {
         return get_val(get_mult($key, $g_opt, $opt), $default);
     };
-    if ($_q) foreach($_q_str_l as $value) {
+    if ($_hq) foreach($_q_str_l as $value) {
         $_q_str_l_s[] = tagesc_re($value);
         $_q_str_l_u[] = urlencode($value);
     }
-    $callback_search = function($m, $text) use ($_q, $_q_str_l_s, &$g_opt) {
+    $callback_search = function($m, $text) use ($_hq, $_q_str_l_s, &$g_opt) {
         $callback_1 = function($m) {
             $text = $m[0];
             $m2_1 = substr($m[2], 0, 1);
@@ -665,7 +648,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $q = null, $loop_fun
             }
             return $text;
         };
-        if ($_q) foreach($_q_str_l_s as $key => $value) {
+        if ($_hq) foreach($_q_str_l_s as $key => $value) {
             $_q_str_s = $_q_str_l_s[$key];
             $text = preg_replace_callback($_q_str_s, $callback_1, $text);
         }
@@ -1053,14 +1036,12 @@ class AutoLink {
     public function get_while() { return $while; }
     private $arr = null;
     private $key_text = 'text';
-    private $key_q = 'q';
-    private $q = null;
     private $text = '';
     function get_text() { return $this->text; }
     function get_value() { return $this->arr[$this->i]; }
     function set_autolink() {
         $this_text = &$this->text;
-        set_autolink(array($this->arr[$this->i]), $this->g_opt, $this->q,
+        set_autolink(array($this->arr[$this->i]), $this->g_opt,
         function($text, $var) use (&$this_text) { $this_text = $text; });
     }
     function set_arr($array = array()) { if (!is_array($array)) {
@@ -1096,14 +1077,13 @@ class AutoLink {
         $this->i = -1;
         return $this->while = true;
     }
-    static function create($arr = array(), string $key_text = 'text', $q = null, $g_opt = null){
+    static function create($arr = array(), string $key_text = 'text', $g_opt = null){
         if (is_null($g_opt)) $g_opt = self::$default_g_opt;
-        return new self($arr, $key_text, $q, $g_opt);
+        return new self($arr, $key_text, $g_opt);
     }
-    function __construct($arr = array(), string $key_text = 'text', $q = null, $g_opt = null){
+    function __construct($arr = array(), string $key_text = 'text', $g_opt = null){
         $this->set_arr($arr);
         if ($key_text !== '') $this->key_text = $key_text;
-        $this->q = get_request($q, $this->key_q);
         if (is_null($g_opt)) $g_opt = self::$default_g_opt;
         $this->g_opt = $g_opt;
         $this->g_opt['arr_text'] = $this->key_text;
