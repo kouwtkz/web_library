@@ -1,7 +1,7 @@
 if (typeof(window.cws) === 'undefined') window.cws = new Object();
 // IEは10以降を対応とする
 (function() {
-    var vertion = '2.4.1';
+    var vertion = '2.4.2';
     cws.update = false;
     if (typeof(cws.vertion) === 'undefined') cws.vertion = '0';
     if (vertion > cws.vertion) {
@@ -817,25 +817,38 @@ if (cws.update) {
         }
     }
     cws.storage = new Object();
-    cws.storage.out = function(key, value) {
+    cws.storage.def_json = false;
+    cws.storage.out = function(key, value, json_convert) {
         key = cws.check.nullvar(key, 'key');
         value = cws.check.def(value, null);
+        json_convert = cws.check.nullvar(json_convert, cws.storage.def_json);
         var storage = sessionStorage;
         storage.removeItem(key);
         if (value !== null) {
+            if (json_convert) {
+                value = JSON.stringify(value);
+            }
             storage.setItem(key, value);
         }
     }
     cws.storage.remove = function(key) {
         cws.storage.out(key);
     }
-    cws.storage.get = function(key, remove_flag) {
+    cws.storage.get = function(key, remove_flag, json_convert) {
         key = cws.check.nullvar(key, 'key');
         remove_flag = cws.check.nullvar(remove_flag, false);
+        json_convert = cws.check.nullvar(json_convert, cws.storage.def_json);
         var storage = sessionStorage;
         var getstr = storage[key];
-        var do_remove = remove_flag
         if (typeof(getstr) === 'undefined') getstr = "";
+        if (json_convert) {
+            if (getstr == "") {
+                getstr = null;
+            } else {
+                try{ getstr = JSON.parse(getstr); }
+                catch{ getstr = {value: getstr}; }
+            }
+        }
         if (remove_flag) cws.storage.remove(key);
         return getstr;
     }
