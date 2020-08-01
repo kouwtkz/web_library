@@ -38,6 +38,7 @@ class server{
         $t->url_dir = $t->basehost.get_dir($t->path);
         $t->pathlist = explode('/', $t->path);
         $t->php_path = str_replace($_SERVER['DOCUMENT_ROOT'],'',str_replace('\\','/',__FILE__));
+        $t->php_sv = $_SERVER;
         $t->php_dir = get_dir($t->php_path);
         $t->ref_url = get_val($_SERVER, 'HTTP_REFERER', "");
         $t->ref_domain = get_domain($t->ref_url);
@@ -57,6 +58,26 @@ class server{
         preg_match("/(\d*)([A-Z])/", $limit, $m);
         $t->limitsize = $m[1] * pow(1024, get_val($t->prefix_l_list[$m[2]], 0));
     }
+    function get_pathlist($server = null){
+        if ($server === null) {
+            return $this->pathlist;
+        } elseif (is_array($server)) {
+            $php_self = $server['PHP_SELF'];
+        } else {
+            $php_self = strval($server);
+        }
+        $return_list = array();
+        $path_list_count = count($this->pathlist);
+        $selfpath_list = explode('/', $php_self);
+        $selfpath_list_count = count($selfpath_list);
+        if ($path_list_count < $selfpath_list_count) return $return_list;
+        for ($i = 0; $i < $path_list_count; $i++) {
+            if ($i >= $selfpath_list_count || $this->pathlist[$i] !== $selfpath_list[$i]) {
+                array_push($return_list, $this->pathlist[$i]);
+            }
+        }
+        return $return_list;
+    }
 }
 $cws = new server();
 function get_basehost(string $url){
@@ -72,21 +93,6 @@ function get_dir(string $url){
     preg_match('/^.*?\./', $url.'.', $base);
     preg_match('/^.*\//', $base[0], $base);
     return (count($base)===0)?"":preg_replace('/\/+$/','/',$base[0]);
-}
-// 存在しない場合は標準の場合はnullを返す
-function get_val($val_or_array, $key_or_nullval = null, $nullval = null) {
-    if (is_array($val_or_array)){
-        if (is_array($key_or_nullval)) {
-            foreach ($key_or_nullval as &$value) {
-                if (isset($val_or_array[$value])) return @$val_or_array[$value];
-            }
-        } else {
-            return (isset($val_or_array[$key_or_nullval])) ? @$val_or_array[$key_or_nullval] : $nullval;
-        }
-    }
-    else{
-        return (is_null($val_or_array) ? $key_or_nullval : $val_or_array);
-    }
 }
 //  配列用の値チェック、自動削除も可能
 function get_ref(array &$array, $key, $do_unset = false, $null_val = null, $null_set = false) {

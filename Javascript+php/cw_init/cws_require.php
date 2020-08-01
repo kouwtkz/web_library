@@ -14,6 +14,22 @@ function path_auto_doc(string $path = ''){
     }
     return $path;
 }
+// 存在しない場合は標準の場合はnullを返す
+function get_val($val_or_array, $key_or_nullval = null, $nullval = null) {
+    if (is_array($val_or_array)){
+        if (is_array($key_or_nullval)) {
+            foreach ($key_or_nullval as &$value) {
+                if (isset($val_or_array[$value])) return @$val_or_array[$value];
+            }
+            return $nullval;
+        } else {
+            return (isset($val_or_array[$key_or_nullval])) ? @$val_or_array[$key_or_nullval] : $nullval;
+        }
+    }
+    else{
+        return (is_null($val_or_array) ? $key_or_nullval : $val_or_array);
+    }
+}
 // パスの存在チェック、存在しないときは空かパス名のいずれかを返す
 function get_path(string $path = '', bool $return_blank = true) {
     $docpath = get_docpath($path, true);

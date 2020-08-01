@@ -591,7 +591,7 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
 // set_autolink($arr, 'text', $_REQUEST['q']);
 function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     global $callback_tagesc, $cws;
-    $g_opt = array('arr_text' => 'text', 'autoplay' => false, 'htmlspecialchars' => true);
+    $g_opt = array('arr_text' => 'text', 'arr_htmlsp' => array('htmlsp', 'htmlspecialchars'), 'htmlsp' => true, 'autoplay' => false);
     if (!\is_null($arg_g_opt)){
         if (\is_array($arg_g_opt)) {
             $g_opt = array_merge($g_opt, $arg_g_opt);
@@ -942,7 +942,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 }
                 $value_l = array();
             } }
-            $url = str_replace(' ', '+', $get_str);
+            $url = str_replace(' ', '%20', $get_str);
             $text = $url;
             if ($set_link_flag) {
                 if ($text !== '') {
@@ -1010,9 +1010,12 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
 
     if (get_val($g_opt, 'cb_after', null) !== null) $func_list[] = $g_opt['cb_after']; 
 
-    $htmlspecialchars = get_val($g_opt, 'htmlspecialchars', true);
     $permission = get_val($g_opt, 'permission', array());
+    
+    $g_arr_htmlsp = get_val($g_opt, 'arr_htmlsp', '');
+    $g_htmlspecialchars = get_val($g_opt, $g_arr_htmlsp, true);
     foreach($arr as $var) {
+        $htmlspecialchars = $g_htmlspecialchars && get_val($var, $g_arr_htmlsp, true);
         $text = get_val($var, $arr_text, '');
         $text = ' '.convert_to_href_decode($text).' ';
         if ($htmlspecialchars) $text = htmlspecialchars($text);
