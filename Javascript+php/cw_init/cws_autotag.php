@@ -591,7 +591,8 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
 // set_autolink($arr, 'text', $_REQUEST['q']);
 function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     global $callback_tagesc, $cws;
-    $g_opt = array('arr_text' => 'text', 'arr_htmlsp' => array('htmlsp', 'htmlspecialchars'), 'htmlsp' => true, 'autoplay' => false);
+    $g_opt = array('arr_text' => 'text', 'arr_after_text' => 'after_text', 'arr_before_text' => 'before_text',
+        'arr_htmlsp' => array('htmlsp', 'htmlspecialchars'), 'htmlsp' => true, 'autoplay' => false);
     if (!\is_null($arg_g_opt)){
         if (\is_array($arg_g_opt)) {
             $g_opt = array_merge($g_opt, $arg_g_opt);
@@ -599,8 +600,6 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             $g_opt['arr_text'] = $arg_g_opt;
         }
     }
-    $arr_text = $g_opt['arr_text'];
-    if (!\is_array($arr)) $arr = array($arr_text => $arr);
     $key_q = get_val($g_opt, 'key_q', null);
     $request_q = get_val($g_opt, 'q', get_val($_REQUEST, $key_q, ''));
     $highlight_q =get_val($g_opt, 'highlight_q', $request_q); 
@@ -1012,11 +1011,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
 
     $permission = get_val($g_opt, 'permission', array());
     
+    if (!\is_array($arr)) $arr = array($g_opt['arr_text'] => $arr);
+
     $g_arr_htmlsp = get_val($g_opt, 'arr_htmlsp', '');
     $g_htmlspecialchars = get_val($g_opt, $g_arr_htmlsp, true);
     foreach($arr as $var) {
         $htmlspecialchars = $g_htmlspecialchars && get_val($var, $g_arr_htmlsp, true);
-        $text = get_val($var, $arr_text, '');
+        $text = get_val($var, $g_opt['arr_before_text'], '') . get_val($var, $g_opt['arr_text'], '') . get_val($var, $g_opt['arr_after_text'], '');
         $text = ' '.convert_to_href_decode($text).' ';
         if ($htmlspecialchars) $text = htmlspecialchars($text);
         $text = convert_to_br($text);
@@ -1029,7 +1030,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
 // set_autolinkのクラス版、ループは-1から開始するため、
 // while($autolink->next()){}でループを回すことができます
 class AutoLink {
-    static private $default_g_opt = array('autoplay'=>false, 'htmlspecialchars' => true);
+    static private $default_g_opt = array('autoplay'=> false, 'htmlspecialchars' => true);
     private $i = 0;
     private $length = 0;
     private $while = false;
@@ -1047,8 +1048,8 @@ class AutoLink {
         set_autolink(array($this->arr[$this->i]), $this->g_opt,
         function($text, $var) use (&$this_text) { $this_text = $text; });
     }
-    function set_arr($array = array()) { if (!is_array($array)) {
-        $array = array($key_text => $array);}
+    function set_arr($array = array()) {
+        if (!is_array($array)) { $array = array($key_text => $array); }
         $this->arr = $array;
         $this->length = count($this->arr);
     }
@@ -1080,16 +1081,15 @@ class AutoLink {
         $this->i = -1;
         return $this->while = true;
     }
-    static function create($arr = array(), string $key_text = 'text', $g_opt = null){
+    static function create($arr = array(), $g_opt = null){
         if (is_null($g_opt)) $g_opt = self::$default_g_opt;
-        return new self($arr, $key_text, $g_opt);
+        return new self($arr, $g_opt);
     }
-    function __construct($arr = array(), string $key_text = 'text', $g_opt = null){
-        $this->set_arr($arr);
-        if ($key_text !== '') $this->key_text = $key_text;
+    function __construct($arr = array(), $g_opt = null){
         if (is_null($g_opt)) $g_opt = self::$default_g_opt;
         $this->g_opt = $g_opt;
-        $this->g_opt['arr_text'] = $this->key_text;
+        if (isset($this->g_opt['arr_text'])) $this->key_text = $this->g_opt['arr_text'];
+        $this->set_arr($arr);
         $this->i = -1;
     }
     function __destruct() {
