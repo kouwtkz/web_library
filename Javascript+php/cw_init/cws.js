@@ -1,7 +1,7 @@
 if (typeof(window.cws) === 'undefined') window.cws = new Object();
 // IEは10以降は保証、9以下は一部動かないかも
 (function() {
-    var vertion = '2.5.0';
+    var vertion = '2.5.1';
     cws.update = false;
     if (typeof(cws.vertion) === 'undefined') cws.vertion = '0';
     if (vertion > cws.vertion) {
@@ -968,6 +968,7 @@ if (cws.update) {
             window.location.href = href;
         }
     };
+    cws.check.ie8 = /MSIE [1-8]/.test(navigator.userAgent);
     cws.event = function(event, func, target){
         if (typeof(target)!=='object') target = window;
         var type = typeof(func);
@@ -979,11 +980,16 @@ if (cws.update) {
             target.attachEvent('on' + event, func);
         }
         return true;
-    }
-    cws.load = function(func, target){
-        return cws.event('load', func, target);
-    }
-    cws.load(function(){
+    };
+    cws.ready = function(func, target){
+        var target_def = (typeof(target)!=='object');
+        if (cws.check.ie8) {
+            return cws.event('load', func, target_def ? window : target);
+        } else {
+            return cws.event('DOMContentLoaded', func, target_def ? document : target);
+        }
+    };
+    cws.ready(function(){
         var cws = window.cws;
     });
 }
