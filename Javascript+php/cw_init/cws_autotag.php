@@ -959,6 +959,30 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             return $text;
         };
         $text = brackets_loop($text, $hatena_func);
+        $heading_re = '/^(\s*)(\*+)(.*)$/m';
+        $text = preg_replace_callback($heading_re, function($m) {
+            $space_len = strlen($m[1]);
+            $tag = '';
+            if (strlen($m[1]) > 0) {
+                if (substr($m[1], -1) === ' ') $m[1] = substr($m[1], 0, $space_len - 1);
+            } else {
+                $symbol_len = strlen($m[2]);
+                switch (substr($m[2], 0, 1)) {
+                    case '*':
+                        switch ($symbol_len) {
+                            case 1: $tag = 'h3'; break;
+                            case 2: $tag = 'h4'; break;
+                            case 3: $tag = 'h5'; break;
+                        }
+                    break;
+                }
+            }
+            if ($tag === '') {
+                return $m[1].$m[2].$m[3];
+            } else {
+                return '<'.$tag.'>'.$m[3].'</'.$tag.'>';
+            }
+        }, $text);
         return $text;
     };
     $hashtag_re = '/(^|\s)#([^\s\<#]*)/';
@@ -1018,7 +1042,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     foreach($arr as $var) {
         $htmlspecialchars = $g_htmlspecialchars && get_val($var, $g_arr_htmlsp, true);
         $text = get_val($var, $g_opt['arr_before_text'], '') . get_val($var, $g_opt['arr_text'], '') . get_val($var, $g_opt['arr_after_text'], '');
-        $text = ' '.convert_to_href_decode($text).' ';
+        $text = convert_to_href_decode($text);
         if ($htmlspecialchars) $text = htmlspecialchars($text);
         $text = convert_to_br($text);
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
