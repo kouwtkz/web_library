@@ -1,7 +1,7 @@
 if (typeof(window.cws) === 'undefined') window.cws = new Object();
-// IEは10以降を対応とする
+// IEは10以降は保証、9以下は一部動かないかも
 (function() {
-    var vertion = '2.4.2';
+    var vertion = '2.5.0';
     cws.update = false;
     if (typeof(cws.vertion) === 'undefined') cws.vertion = '0';
     if (vertion > cws.vertion) {
@@ -9,6 +9,10 @@ if (typeof(window.cws) === 'undefined') window.cws = new Object();
     }
 })();
 if (cws.update) {
+    if (typeof(Object.keys) === 'undefined') {
+        Object.keys = function(o){var k=[]; for(var i in o){if(o.hasOwnProperty(i)){ k.push(i);}} return k; };
+        Array.prototype.indexOf = function(e){var l=this.length>>>0;var f=Number(arguments[1])||0;f = (f < 0)?Math.ceil(f):Math.floor(f);if(f<0)f+=l;for(;f<l;f++){if(f in this&&this[f]===e)return f;}return -1;};
+    }
     cws.check = new Object();
     cws.check.def = function(args, undefined_var){
         if (typeof(args) === 'undefined') args = undefined_var;
@@ -94,7 +98,7 @@ if (cws.update) {
         }
         switch (typeof(format_str)){
             case 'string':
-                if (format_str == '') format_str = cws.v.date_default;
+                if (format_str === '') format_str = cws.v.date_default;
                 break;
             default:
                 format_str = 'Y-m-d';
@@ -790,11 +794,9 @@ if (cws.update) {
             }
             var localrun = function(lxr) {
                 delete cws.ajax.id_stock[id];
-                cws.ajax.result = {
-                    status: lxr.status,
-                    text: lxr.responseText,
-                    conmode: true,
-                }
+                cws.ajax.result.status = lxr.status;
+                cws.ajax.result.text = lxr.responseText;
+                cws.ajax.result.conmode = true;
                 if (lxr.status == 200 || lxr.status == 304) {
                     if (typeof(onload) === "function") { onload(lxr.response, lxr); }
                 } else {
@@ -846,7 +848,7 @@ if (cws.update) {
                 getstr = null;
             } else {
                 try{ getstr = JSON.parse(getstr); }
-                catch{ getstr = {value: getstr}; }
+                catch(e){ getstr = {value: getstr}; }
             }
         }
         if (remove_flag) cws.storage.remove(key);
@@ -941,7 +943,7 @@ if (cws.update) {
     cws.dom.smooth_flag = false;
     cws.dom.hashScroll = function(hash, smooth_flag, timeout){
         hash = cws.check.nullvar(hash, location.hash.slice(1));
-        if (hash == '') return;
+        if (hash === '') return;
         smooth_flag = cws.check.nullvar(smooth_flag, cws.dom.smooth_flag);
         timeout = cws.check.nullvar(timeout, 0);
         var elm = document.querySelector('[name="' + hash + '"]');
@@ -966,9 +968,22 @@ if (cws.update) {
             window.location.href = href;
         }
     };
-    window.addEventListener( 'load', function(){
+    cws.event = function(event, func, target){
+        if (typeof(target)!=='object') target = window;
+        var type = typeof(func);
+        if (!(type==='function'||type==='object')) return false;
+        if (typeof(event)!='string') return false;
+        if (typeof(target.addEventListener) === 'function') {
+            target.addEventListener(event, func);
+        } else if (typeof(target.attachEvent)!== 'undefined') {
+            target.attachEvent('on' + event, func);
+        }
+        return true;
+    }
+    cws.load = function(func, target){
+        return cws.event('load', func, target);
+    }
+    cws.load(function(){
         var cws = window.cws;
-        // Auto Reload Check
-        cws.dom.autoreload();
     });
 }
