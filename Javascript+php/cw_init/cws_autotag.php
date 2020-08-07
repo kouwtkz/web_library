@@ -658,10 +658,11 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         $data_origin = ''; $title = ''; $type = '__default__'; $target = '__default__';
         $class = ''; $style = ''; $opt = array(); $internal = false;
     };
-    $set_link = function($m)
+    $set_link = function($str, $sub = '')
     use (&$class_reset, &$data_origin, &$target, &$title, &$type, &$class, &$style, &$internal, &$opt, $g_opt, &$get_mult_opt){
         global $cws;
-        $str = $m[1];
+        $sub_empty = empty($sub);
+        if ($sub_empty) $sub = &$str; 
         $host = parse_url($str, PHP_URL_HOST);
         $internal = (is_null($host)) || ($host === $_SERVER['HTTP_HOST']);
         if ($type === '__default__') {
@@ -678,13 +679,17 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         }
         if ($target === '__default__') {
             if ($internal) {
-                switch($type) {
-                case 'image': case 'video': case 'audio':
-                    $target = '_blank';
-                break;
-                default:
+                if ($sub_empty) {
+                    switch($type) {
+                    case 'image': case 'video': case 'audio':
+                        $target = '_blank';
+                    break;
+                    default:
+                        $target = '';
+                    break;
+                    }
+                } else {
                     $target = '';
-                break;
                 }
             } else { $target = '_blank'; }
         }
@@ -698,7 +703,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 $title = mb_substr($title, 0, mb_strlen($title) - 1).'…';
             }
         }
-        $str = str_replace('%20', ' ', $str);
+        $title = str_replace('%20', ' ', $title);
         $ext = substr($str, strrpos($str, '.') + 1);
         $return_text = '';
         $object = false;
@@ -712,7 +717,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 if (isset($g_opt['link_image'])){
                     $return_text = $g_opt['link_image']($img, array('src'=>$src, 'title'=>$title, 'target'=>$target, 'relno'=>$relno));
                 } else {
-                    $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'">'.
+                    $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'">'.
                     '<img alt="'.$title.'" src="'.$str.'"'.$add_style.' data-origin="'.$data_origin.'">'.
                     '</a>';
                 }
@@ -724,7 +729,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     $controls = $get_mult_opt('controls', true);
                     $return_text = '<video '.(($controls)?'controls':'').' class="'.$class.'"'.$add_style.' data-origin="'.$data_origin.'">'
                     .'<source src="'.$str.'">'
-                    .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
+                    .'<a href="'.$sub.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</video>';
                 } else {
                     $loop = false;
@@ -744,7 +749,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     .''.(($muted)?'muted ':'').''.(($preload)?'preload ':'')
                     .'class="'.$class.'"'.$add_style.' data-origin="'.$data_origin.'">'
                     .'<source src="'.$str.'">'
-                    .'<a href="'.$str.'"'.$target.$relno.'>'.$title.'</a>'
+                    .'<a href="'.$sub.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</audio>';
                 } else {
                     $loop = true;
@@ -760,13 +765,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 $sub_data = substr($data, 0, $inline_len);
                 if ($data !== $sub_data) { $data = mb_substr($sub_data, 0, mb_strlen($sub_data) - 1).'…'; }
                 $return_text = 
-                '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title."</a></br>"
+                '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title."</a></br>"
                 ."<pre class='inline text' data-origin='$data_origin'>$data</pre>";
             break;
             default:
                 $charset = $get_mult_opt('charset', '');
                 $a_charset = ($charset === '') ? '' : (' charset="'.$charset.'"');
-                $return_text = '<a href="'.$str.'"'.$target.$relno.' class="'.$class.'" style="'.$style.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title.'</a>';
+                $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'" style="'.$style.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title.'</a>';
             break;
         }
         if ($object) {
@@ -941,11 +946,15 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 }
                 $value_l = array();
             } }
-            $url = str_replace(' ', '%20', $get_str);
-            $text = $url;
+            $text = str_replace(' ', '%20', $get_str);
+            $subtext = '';
+            if (preg_match('/^([^\[]*)\[(.*)\]([^\]]*)$/', $text, $mturl)) {
+                $text = $mturl[1].$mturl[3];
+                $subtext = $mturl[2];
+            }
             if ($set_link_flag) {
                 if ($text !== '') {
-                    $text = $set_link(array('', $text));
+                    $text = $set_link($text, $subtext);
                 } else {
                     $class_reset();
                 }
