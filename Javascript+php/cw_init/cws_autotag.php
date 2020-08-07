@@ -990,7 +990,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         $heading_re = '/^(\s*)([*%]+)(.*)$/m';
         $text = preg_replace_callback($heading_re, function($m) {
             $space_len = strlen($m[1]);
-            $retval = $m[3]; $mnb_tag = false;
+            $retval = $m[3]; $mnb_tag = 0;
             if (strlen($m[1]) > 0) {
                 if (substr($m[1], -1) === ' ') $m[1] = substr($m[1], 0, $space_len - 1);
             } else {
@@ -1015,7 +1015,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                         break;
                     }
                     if ($style !== '') $style = " style='$style'";
-                    $tmp_tag = $tag === '';
+                    $tmp_tag = $tag !== '';
                     $mnb_tag |= $tmp_tag;
                     if ($tag !== '') $retval = '<'.$tag.$style.'>'.$retval.'</'.$tag.'>';
                 }
@@ -1023,7 +1023,6 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             }
             if ($mnb_tag) {
                 return $retval;
-
             } else {
                 return $m[1].$m[2].$retval;
             }
