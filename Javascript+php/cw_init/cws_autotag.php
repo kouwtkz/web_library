@@ -941,13 +941,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                                 }
                             break;
                             default:
-                                if (preg_match('/^(m|margin|p|padding)($|-(.+)$)/', $swm[1], $mpm)) {
-                                    if (empty($swm[3])) { $unit = 'px'; } else { $unit = $swm[3]; }
+                                if (preg_match('/^(m|margin|p|padding)\s*($|-(.+)$)/', $swm[1], $mpm)) {
                                     $mp_attr = ($mpm[1][0] === 'p') ? 'padding' : 'margin';
                                     if (empty($mpm[2])) {
-                                        $numstr = $swm[2];
-                                        $add_style[] = $mp_attr.':'.$swm[2].$unit.';';
+                                        $numstr = preg_replace('/(\d+)(\s|$)/', '$1px$2', $swm[2].$swm[3]);
+                                        $add_style[] = $mp_attr.':'.$numstr.';';
                                     } else {
+                                        if (empty($swm[3])) { $unit = 'px'; } else { $unit = $swm[3]; }
                                         $numstr = strval(intval($swm[2]));
                                         switch ($mpm[3]) {
                                             case 't': case 'top':
