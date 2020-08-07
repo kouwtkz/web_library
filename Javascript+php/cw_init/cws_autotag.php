@@ -898,7 +898,8 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                             break;
                             case 'h':
                                 $numstr = strval(intval($swm[2]));
-                                $add_style[] .= 'height:'.$numstr.'px;';
+                                if (empty($swm[3])) { $unit = 'px'; } else { $unit = $swm[3]; } 
+                                $add_style[] = 'height:'.$numstr.$unit.';';
                             break;
                             case 'auto':
                                 $add_style[] .= 'width:auto; height:auto;';
@@ -940,13 +941,42 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                                 }
                             break;
                             default:
-                                switch ($value) {
-                                    case 'image': case 'movie': case 'video': case 'audio': case 'text': case 'application': case 'inline':
-                                        $type = $value;
-                                    break;
-                                    default:
-                                        $plane_flag = true;
-                                    break;
+                                if (preg_match('/^(m|margin|p|padding)($|-(.+)$)/', $swm[1], $mpm)) {
+                                    if (empty($swm[3])) { $unit = 'px'; } else { $unit = $swm[3]; }
+                                    $mp_attr = ($mpm[1][0] === 'p') ? 'padding' : 'margin';
+                                    if (empty($mpm[2])) {
+                                        $numstr = $swm[2];
+                                        $add_style[] = $mp_attr.':'.$swm[2].$unit.';';
+                                    } else {
+                                        $numstr = strval(intval($swm[2]));
+                                        switch ($mpm[3]) {
+                                            case 't': case 'top':
+                                                $add_style[] = $mp_attr.'-top:'.$numstr.$unit.';';
+                                            break;
+                                            case 'v': case 'vertical':
+                                                $add_style[] = $mp_attr.'-top:'.$numstr.$unit.';';
+                                            case 'b': case 'bottom':
+                                                $add_style[] = $mp_attr.'-bottom:'.$numstr.$unit.';';
+                                            break;
+                                            case 'l': case 'left':
+                                                $add_style[] = $mp_attr.'-left:'.$numstr.$unit.';';
+                                            break;
+                                            case 'h': case 'horizontal':
+                                                $add_style[] = $mp_attr.'-left:'.$numstr.$unit.';';
+                                            case 'r': case 'right':
+                                                $add_style[] = $mp_attr.'-right:'.$numstr.$unit.';';
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    switch ($value) {
+                                        case 'image': case 'movie': case 'video': case 'audio': case 'text': case 'application': case 'inline':
+                                            $type = $value;
+                                        break;
+                                        default:
+                                            $plane_flag = true;
+                                        break;
+                                    }
                                 }
                             break;
                         }
