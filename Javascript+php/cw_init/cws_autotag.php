@@ -857,7 +857,6 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             $linkoption_add_enable = true;
             for($i = 0; $i < $c_om_2l; $i++) {
                 $rest_0 = substr($om_2l[$i], -1);
-                $rest_1 = substr($om_2l[$i + 1], 0, 1);
                 if ($rest_0 === '\\') {
                     preg_match('/\\\\+$/', $om_2l[$i], $om2);
                     if (strlen($om2[0]) % 2 === 1){
@@ -866,9 +865,6 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     } else {
                         $value_l[] = $om_2l[$i];
                     }
-                } elseif(is_numeric($rest_0.$rest_1)) {
-                    $value_l[] = $om_2l[$i];
-                    continue;
                 } else {
                     $value_l[] = $om_2l[$i];
                 }
@@ -897,7 +893,8 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                             break;
                             case 'w':
                                 $numstr = strval(intval($swm[2]));
-                                $add_style[] = 'width:'.$numstr.'px;';
+                                if (empty($swm[3])) { $unit = 'px'; } else { $unit = $swm[3]; } 
+                                $add_style[] = 'width:'.$numstr.$unit.';';
                             break;
                             case 'h':
                                 $numstr = strval(intval($swm[2]));

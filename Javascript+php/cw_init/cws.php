@@ -50,7 +50,7 @@ class server{
             "K" => 1, "M" => 2, "G" => 3, "T" => 4, "P" => 5
         );
         $t->url_pattern = '/((?:https?|ftp):\/\/\S+)/';
-        $t->image_re = '/\.(gif|png|jpg|jpeg|bmp)$/i';
+        $t->image_re = '/\.(gif|png|jpg|jpeg|bmp|svg)$/i';
         $t->video_re = '/\.(mp4|mpg|mpeg|swf|ogv|mov|avi|webm)$/i';
         $t->audio_re = '/\.(wave|wav|ogg|mp3|m4a|aac)$/i';
         $t->url_rg = ["!","#","$","&","'","(",")","*",",","/",":",";","=","?","@","[","]"," "];
