@@ -658,9 +658,10 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         $data_origin = ''; $title = ''; $type = '__default__'; $target = '__default__';
         $class = ''; $style = ''; $opt = array(); $internal = false;
     };
-    $set_link = function($str, $sub = '')
+    $set_link = function($mturl, string $sub = '')
     use (&$class_reset, &$data_origin, &$target, &$title, &$type, &$class, &$style, &$internal, &$opt, $g_opt, &$get_mult_opt){
         global $cws;
+        if (is_array($mturl)) { $str = $mturl[1]; } else { $str = $mturl; }
         $sub_empty = empty($sub);
         if ($sub_empty) $sub = &$str; 
         $host = parse_url($str, PHP_URL_HOST);
@@ -705,10 +706,17 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         }
         $title = str_replace('%20', ' ', $title);
         $ext = substr($str, strrpos($str, '.') + 1);
+        $description = get_val($opt,'description', false);
+
         $return_text = '';
         $object = false;
         $loop = false;
         $media_type = '';
+        switch($type) {
+            case 'image':
+                $style .= ' display:inline-block; text-align:center;';
+            break;
+        }
         $add_style = ($style === '') ? '' : ' style="'.$style.'"';
         switch($type) {
             case 'image':
@@ -717,9 +725,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 if (isset($g_opt['link_image'])){
                     $return_text = $g_opt['link_image']($img, array('src'=>$src, 'title'=>$title, 'target'=>$target, 'relno'=>$relno));
                 } else {
-                    $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'">'.
-                    '<img alt="'.$title.'" src="'.$str.'"'.$add_style.' data-origin="'.$data_origin.'">'.
-                    '</a>';
+                    if ($description) {
+                        $return_text = '<img alt="'.$str.'" src="'.$str.'" data-origin="'.$data_origin.'">';
+                        $return_text = '<div'.$add_style.'>'.$return_text.'<p>'.$title.'</p></div>';
+                    } else {
+                        $return_text = '<img alt="'.$title.'" src="'.$str.'"'.$add_style.' data-origin="'.$data_origin.'">';
+                    }
+                    $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'">'.$return_text.'</a>';
                 }
             break;
             case 'movie': case 'video':
@@ -731,6 +743,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     .'<source src="'.$str.'">'
                     .'<a href="'.$sub.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</video>';
+                    if ($description) { $return_text = "<p>$return_text</p><p style=\"text-align: center;\">$title</p>"; }
                 } else {
                     $loop = false;
                 }
@@ -751,6 +764,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     .'<source src="'.$str.'">'
                     .'<a href="'.$sub.'"'.$target.$relno.'>'.$title.'</a>'
                     .'</audio>';
+                    if ($description) { $return_text = "<p>$return_text</p><p>$title</p>"; }
                 } else {
                     $loop = true;
                 }
@@ -788,7 +802,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         }
         $text_align = get_val($opt,'text-align', '');
         if ($text_align !== '') {
-            $return_text = "<p style='text-align:$text_align'>$return_text</p>";
+            $return_text = "<div style='text-align:$text_align'>$return_text</div>";
         }
         $class_reset();
         return $return_text;
@@ -840,6 +854,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             $om_2l[] = '';
             $value_l = array();
             $value = '';
+            $linkoption_add_enable = true;
             for($i = 0; $i < $c_om_2l; $i++) {
                 $rest_0 = substr($om_2l[$i], -1);
                 $rest_1 = substr($om_2l[$i + 1], 0, 1);
@@ -861,10 +876,14 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 $plane_flag = false;
                 $value_spl = \explode(',', $value);
                 foreach($value_spl as $mono_spl) {
-                    if (preg_match('/^\s*([^\d\=]+)[\s:\=]*(\d*)(.*)$/', $mono_spl, $swm)){
+                    if ($linkoption_add_enable && preg_match('/^\s*([^\d\=]+)[\s:\=]*(\d*)(.*)$/', $mono_spl, $swm)){
+                        $equal_f = strpos($swm[0], '=') !== false;
                         $add_style = array();
                         $add_class =  array();
                         switch ($swm[1]) {
+                            case '[]':
+                                $linkoption_add_enable = false;
+                            break;
                             case 'i': case 'b':
                                 $add_tag_list[] = $swm[1];
                             break;
@@ -904,6 +923,9 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                             break;
                             case 'target':
                                 $target = $swm[3];
+                            break;
+                            case 'd': case 'description':
+                                $opt['description'] = true;
                             break;
                             case 'object': case 'controls': case 'loop':
                             case 'muted': case 'autoplay': case 'preload':
@@ -948,9 +970,9 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             } }
             $text = str_replace(' ', '%20', $get_str);
             $subtext = '';
-            if (preg_match('/^([^\[]*)\[(.*)\]([^\]]*)$/', $text, $mturl)) {
-                $text = $mturl[1].$mturl[3];
-                $subtext = $mturl[2];
+            if (preg_match('/^([^\[]*)\[(.*)\]([^\]]*)$/', $text, $mtbrk)) {
+                $text = $mtbrk[1].$mtbrk[3];
+                $subtext = $mtbrk[2];
             }
             if ($set_link_flag) {
                 if ($text !== '') {
