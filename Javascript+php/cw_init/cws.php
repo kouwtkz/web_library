@@ -422,4 +422,26 @@ function auto_uripath($doc_path = null, $request_uri = null, $out_dir = false) {
     }
     return $sv_jumpurl;
 }
+// 文字列の中から含まれる文字の数を抽出する
+function get_strqty($str, $mb = true) {
+    $retval = array();
+    if ($mb) {
+        $str = preg_split('//u', $str);
+        $i = 1;
+        $l = count($str) - 1;
+    } else {
+        $i = 0;
+        $l = strlen($str);
+    }
+    while($i < $l){
+        $v = $str[$i];
+        if (isset($retval[$v])) {
+            ++$retval[$v];
+        } else {
+            $retval[$v] = 1;
+        }
+        ++$i;
+    }
+    return $retval;
+}
 ?>
