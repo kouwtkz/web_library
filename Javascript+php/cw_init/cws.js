@@ -981,13 +981,18 @@ if (cws.update) {
         }
         return true;
     };
+    // documentを指定すると自動でDOMContentLoaded、それ以外はloadになります
     cws.ready = function(func, target){
         var target_def = (typeof(target)!=='object');
+        var event_type = null;
         if (cws.check.ie8) {
-            return cws.event('load', func, target_def ? window : target);
+            target = target_def ? window : target;
+            event_type = 'load';
         } else {
-            return cws.event('DOMContentLoaded', func, target_def ? document : target);
+            target = target_def ? document : target;
+            event_type = (target === document) ? 'DOMContentLoaded' : 'load';
         }
+        return cws.event(event_type, func, target);
     };
     cws.ready(function(){
         var cws = window.cws;
