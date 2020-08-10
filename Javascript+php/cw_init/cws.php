@@ -33,7 +33,7 @@ class server{
         $t->scheme = get_val($_SERVER['REQUEST_SCHEME'], '');
         $t->basehost = $t->scheme.'://'.get_val($_SERVER['HTTP_HOST'], '');
         $t->domain = get_domain('', false);
-        $t->path = preg_replace("/\?.+$/",'',get_val($_SERVER['REQUEST_URI'], ''));
+        $t->path = preg_replace("/\?.*$/",'',get_val($_SERVER['REQUEST_URI'], ''));
         $t->url = $t->basehost.$t->path;
         $t->url_dir = $t->basehost.get_dir($t->path);
         $t->pathlist = explode('/', $t->path);
@@ -70,6 +70,7 @@ class server{
         $path_list_count = count($this->pathlist);
         $selfpath_list = explode('/', $php_self);
         $selfpath_list_count = count($selfpath_list);
+
         if ($path_list_count < $selfpath_list_count) return $return_list;
         for ($i = 0; $i < $path_list_count; $i++) {
             if ($i >= $selfpath_list_count || $this->pathlist[$i] !== $selfpath_list[$i]) {
