@@ -649,7 +649,17 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         };
         if ($_hq) foreach($_q_str_l_s as $key => $value) {
             $_q_str_s = $_q_str_l_s[$key];
-            $text = preg_replace_callback($_q_str_s, $callback_1, $text);
+            if (preg_match_all('/([^\<\>]*)(\\\\)?([\<\>]?)/',$text, $m3)) {
+                $text_m3 = '';
+                for ($m3_i = 0; $m3_i < count($m3[0]); ++$m3_i) {
+                    if ($m3[3][$m3_i] !== '>') {
+                        $text_m3 .= preg_replace_callback($_q_str_s, $callback_1, $m3[1][$m3_i]).$m3[3][$m3_i];
+                    } else {
+                        $text_m3 .= $m3[0][$m3_i];
+                    }
+                }
+                $text = $text_m3;
+            };
         }
         return $text;
     };
