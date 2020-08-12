@@ -871,6 +871,19 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             $value = '';
             $linkoption_add_enable = true;
             for($i = 0; $i < $c_om_2l; $i++) {
+                $om_2l[$i] = preg_replace_callback('/\\\\(.)/', function ($bsm) {
+                    switch($bsm[1]) {
+                        case '\\':
+                            return '\\';
+                        break;
+                        case 'e':
+                            return '';
+                        break;
+                        default:
+                            return $bsm[0];
+                        break;
+                    }
+                }, $om_2l[$i]);
                 $rest_0 = substr($om_2l[$i], -1);
                 if ($rest_0 === '\\') {
                     preg_match('/\\\\+$/', $om_2l[$i], $om2);
