@@ -855,7 +855,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     $add_tag_list[] = $get_str;
                     $set_link_flag = false;
                 break;
-                case 'e':
+                case 's': case 'e': case 'span':
                     $add_tag_list[] = 'span';
                     $set_link_flag = false;
                 break;
@@ -904,7 +904,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 $plane_flag = false;
                 $value_spl = \explode(',', $value);
                 foreach($value_spl as $mono_spl) {
-                    if ($linkoption_add_enable && preg_match('/^\s*([^\d\=]+)[\s:\=]*(\d*)(.*)$/', $mono_spl, $swm)){
+                    if ($linkoption_add_enable && preg_match('/^\s*(\#|[^\d\=]+)[\s:\=]*(\d*)(.*)$/', $mono_spl, $swm)){
                         $equal_f = strpos($swm[0], '=') !== false;
                         $add_style = array();
                         $add_class =  array();
@@ -914,6 +914,9 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                             break;
                             case 'i': case 'b':
                                 $add_tag_list[] = $swm[1];
+                            break;
+                            case 's': case 'span':
+                                $add_tag_list[] = 'span';
                             break;
                             case 'e':
                             break;
@@ -936,19 +939,25 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                                 $add_style[] = 'height:'.$numstr.$unit.';';
                             break;
                             case 'auto':
-                                $add_style[] .= 'width:auto; height:auto;';
+                                $add_style[] = 'width:auto; height:auto;';
                             break;
                             case 'small':
                                 $get_str = preg_replace('/([^\/]+)\.([^#\?]+)/', 'thumb/$1_s.$2', $get_str);
                             break;
-                            case 's': case 'style':
-                                $add_style[] .= $swm[3];
+                            case 'style':
+                                $add_style[] = $swm[3];
                             break;
-                            case 'c': case 'charset':
+                            case '#':
+                                $add_style[] = 'color:'.$swm[0].';';
+                            break;
+                            case 'c': case 'color':
+                                $add_style[] = 'color:'.$swm[3].';';
+                            break;
+                            case 'charset':
                                 $opt['charset'] = $swm[3];
                             break;
                             case 'cls': case 'class':
-                                $add_class[] .= $swm[3];
+                                $add_class[] = $swm[3];
                             break;
                             case 'title':
                                 $title = $swm[3];
