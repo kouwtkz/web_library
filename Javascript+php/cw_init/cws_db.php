@@ -566,14 +566,18 @@ class DB{
         $servise = $dbi->db_servise;
         switch(mb_strtolower($servise)){
             case 'sqlite': case '0':
-                if ($grob_str !== '')
+                if ($grob_str !== '') {
                     return array("GLOB", $grob_str);
-                else
+                } else {
                     return array("LIKE", $like_str);
+                }
             break;
             case 'mysql': case '1':
-                return array('REGEXP', $reg_str);
-                return 'REGEXP';
+                if ($reg_str === '' && $like_str !== '') {
+                    return array("LIKE", $like_str);
+                } else {
+                    return array('REGEXP', $reg_str);
+                }
             break;
             default:
                 return array('LIKE', $like_str);

@@ -718,6 +718,11 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         $ext = substr($str, strrpos($str, '.') + 1);
         $description = get_val($opt,'description', false);
 
+        $onclick_script = '';
+        if (isset($opt['confirm'])) {
+            $onclick_script = 'return confirm("'.$opt['confirm'].'");';
+        }
+        if ($onclick_script !== '') $onclick_script = " onclick='$onclick_script'";
         $return_text = '';
         $object = false;
         $loop = false;
@@ -741,7 +746,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     } else {
                         $return_text = '<img alt="'.$title.'" src="'.$str.'"'.$add_style.' data-origin="'.$data_origin.'">';
                     }
-                    $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'">'.$return_text.'</a>';
+                    $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'"'.$onclick_script.'>'.$return_text.'</a>';
                 }
             break;
             case 'movie': case 'video':
@@ -795,7 +800,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             default:
                 $charset = $get_mult_opt('charset', '');
                 $a_charset = ($charset === '') ? '' : (' charset="'.$charset.'"');
-                $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'" style="'.$style.'"'.$a_charset.' data-origin="'.$data_origin.'">'.$title.'</a>';
+                $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'" style="'.$style.'"'.$a_charset.$onclick_script.' data-origin="'.$data_origin.'">'.$title.'</a>';
             break;
         }
         if ($object) {
@@ -934,6 +939,9 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                             break;
                             case 'd': case 'description':
                                 $opt['description'] = true;
+                            break;
+                            case '?': case 'confirm':
+                                $opt['confirm'] = $swm[3];
                             break;
                             case 'object': case 'controls': case 'loop':
                             case 'muted': case 'autoplay': case 'preload':
