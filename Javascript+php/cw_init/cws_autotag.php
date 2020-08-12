@@ -855,6 +855,10 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     $add_tag_list[] = $get_str;
                     $set_link_flag = false;
                 break;
+                case 'e':
+                    $add_tag_list[] = 'span';
+                    $set_link_flag = false;
+                break;
                 case '.':
                     $set_link_flag = false;
                 break;
@@ -910,6 +914,8 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                             break;
                             case 'i': case 'b':
                                 $add_tag_list[] = $swm[1];
+                            break;
+                            case 'e':
                             break;
                             case 'left': case 'right': case 'none':
                                 $add_style[] = 'float:'.$swm[1].';';
@@ -1039,7 +1045,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     $class_reset();
                 }
             } else {
-                $text = $title;
+                $tag = array_shift($add_tag_list);
+                if (empty($tag)) {
+                    $text = $title;
+                } else {
+                    $in_style = ($style === '') ? '' : ' style="'.$style.'"';
+                    $text = '<'.$tag.' class="'.$class.'"'.$in_style.'>'.$title.'</'.$tag.'>';                    
+                }
                 $class_reset();
             }
             foreach ($add_tag_list as $add_tag) {
