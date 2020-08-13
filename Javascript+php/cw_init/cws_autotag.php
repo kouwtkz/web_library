@@ -506,9 +506,9 @@ function tagesc_re($value) {
     $_q_f = substr($value, 0, 1);
     $_q_s = preg_replace('/[\?\|\[\]\/\\\\\(\)]/', '\\$0', \addslashes($value));
     if ($_q_f === '#') {
-        $ret = '/(\s)('.$_q_s.')([\s#\<])/';
+        $ret = '/(\s)('.$_q_s.')([\s#\<])/i';
     } else {
-        $ret = '/(.*?)('.$_q_s.')/';
+        $ret = '/(.*?)('.$_q_s.')/i';
     }
     return $ret;
 }
@@ -744,9 +744,9 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                         $return_text = '<img alt="'.$str.'" src="'.$str.'" data-origin="'.$data_origin.'">';
                         $return_text = '<div'.$add_style.'>'.$return_text.'<p>'.$title.'</p></div>';
                     } else {
-                        $return_text = '<img alt="'.$title.'" src="'.$str.'"'.$add_style.' data-origin="'.$data_origin.'">';
+                        $return_text = '<img alt="'.$title.'" src="'.$str.'" data-origin="'.$data_origin.'">';
                     }
-                    $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'"'.$onclick_script.'>'.$return_text.'</a>';
+                    $return_text = '<a href="'.$sub.'"'.$target.$relno.' class="'.$class.'"'.$add_style.$onclick_script.'>'.$return_text.'</a>';
                 }
             break;
             case 'movie': case 'video':
