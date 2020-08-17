@@ -592,7 +592,8 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
 function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     global $callback_tagesc, $cws;
     $g_opt = array('arr_text' => 'text', 'arr_after_text' => 'after_text', 'arr_before_text' => 'before_text',
-        'arr_htmlsp' => array('htmlsp', 'htmlspecialchars'), 'htmlsp' => true, 'autoplay' => false);
+        'arr_htmlsp' => array('htmlsp', 'htmlspecialchars'), 'htmlsp' => true, 'autoplay' => false,
+        'reply_link' => '$0');
     if (!\is_null($arg_g_opt)){
         if (\is_array($arg_g_opt)) {
             $g_opt = array_merge($g_opt, $arg_g_opt);
@@ -603,6 +604,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     $key_q = get_val($g_opt, 'key_q', null);
     $request_q = get_val($g_opt, 'q', get_val($_REQUEST, $key_q, ''));
     $highlight_q =get_val($g_opt, 'highlight_q', $request_q); 
+    $reply_link =get_val($g_opt, 'highlight_q', $request_q); 
     $out_html_list = array();
     if ($loop_func === null) $loop_func = function($text, $var) use (&$out_html_list) { $out_html_list[] = $text; };
     $_q_str = $request_q;
@@ -1113,8 +1115,8 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     };
     $hashtag_re = '/(^|\s)#([^\s\<#]*)/';
     $add_symbol = count($_q_str_l_f) !== 0;
-    $callback_tag = function($m, $text) use ($hashtag_re, $_q_join, $_q_str_l_f, $add_symbol) {
-        $text = preg_replace_callback($hashtag_re, function($m) use ($_q_join, $_q_str_l_f, $add_symbol){
+    $callback_tag = function($m, $text) use (&$hashtag_re, &$_q_join, &$_q_str_l_f, &$add_symbol) {
+        $text = preg_replace_callback($hashtag_re, function($m) use (&$_q_join, &$_q_str_l_f, &$add_symbol){
             $tag = $m[2];
             $tag_hash = '#'.$m[2];
             $brackets_flag = isset($_q_str_l_f[$tag_hash]);
@@ -1126,13 +1128,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         }, $text);
         return $text;
     };
-    $reply_re = '/(^|\s)@(\w+)([\:]?)/';
-    $callback_reply = function($m, $text) use ($reply_re) {
-        $text = preg_replace_callback($reply_re, function($m){
-            $id = $m[2];
-            $id_at = '@'.$m[2];
-            $after = $m[3] == ':' ? '' : $m[3];
-            return $m[1].'<a class="reply" href="?id='.$id.'">'.$id_at.'</a>'.$after;
+    $reply_re = '/(^|\s)(@)(\w+)([\:]?)/';
+    $callback_reply = function($m, $text) use (&$reply_re, &$g_opt) {
+        $text = preg_replace_callback($reply_re, function($m) use (&$g_opt){
+            $reply_link = preg_replace('/^(\?id\=)(.*)$/', $g_opt['reply_link'], '?id='.$m[3]);
+            $id_at = '@'.$m[3];
+            $after = $m[4] == ':' ? '' : $m[4];
+            return $m[1].'<a class="reply" href="'.$reply_link.'">'.$id_at.'</a>'.$after;
         }, $text);
         return $text;
     };
@@ -1190,8 +1192,13 @@ class AutoLink {
     public function get_while() { return $while; }
     private $arr = null;
     private $key_text = 'text';
+    private $hold = false;
     private $text = '';
-    function get_text() { return $this->text; }
+    public $g_opt = null;
+    function get_text() {
+        if ($this->hold) { $this->set_autolink(); $this->hold = false; }
+        return $this->text;
+    }
     function get_value() { return $this->arr[$this->i]; }
     function set_autolink() {
         $this_text = &$this->text;
@@ -1207,7 +1214,7 @@ class AutoLink {
         if ($this->i < 0) $this->i = 0;
         $this->while = $this->i < $this->length;
         if ($this->while) {
-            $this->set_autolink();
+            $this->hold = true;
             return $this->i;
         } else {
             return false;
@@ -1216,14 +1223,14 @@ class AutoLink {
     public function next(){
         $this->while = $this->i < ($this->length - 1);
         if ($this->while) {
-            $this->i++; $this->set_autolink();
+            ++$this->i; $this->hold = true;
         }
         return $this->while;
     }
     public function back(){
         $this->while = $this->i > 0;
         if ($this->while) {
-            $this->i--; $this->set_autolink();
+            --$this->i; $this->hold = true;
         }
         return $this->while;
     }

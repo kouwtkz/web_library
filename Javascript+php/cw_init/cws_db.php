@@ -175,10 +175,10 @@ class DB{
             $sql = "SELECT 1 FROM `$table` LIMIT 1;";
         } else {
             if (is_null($value)) {
-                $sql = "SELECT `$column` FROM `$table` LIMIT 1;";
+                $sql = "SELECT `$column` FROM $table LIMIT 1;";
             } else {
                 $value_mode = true;
-                $sql = "SELECT count(*) AS `count` FROM `$table` WHERE `$column` = ? LIMIT 1;";
+                $sql = "SELECT count(*) AS `count` FROM $table WHERE `$column` = ? LIMIT 1;";
             }
         }
         $dbi = $this->dbi;
