@@ -1208,10 +1208,10 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         $text = get_val($var, $g_opt['arr_before_text'], '') . get_val($var, $g_opt['arr_text'], '') . get_val($var, $g_opt['arr_after_text'], '');
         $text = convert_to_href_decode($text);
         if ($htmlspecialchars) $text = htmlspecialchars($text);
-        $text = escape_to_br($text);
+        $text = convert_to_br($text);
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         if ($align_mode !== '') { $text .= '</div>'; $align_mode = ''; }
-        $text = convert_to_br($text);
+        $text = escape_to_br($text);
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $loop_func($text, $var);
     }
