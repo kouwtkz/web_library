@@ -369,7 +369,7 @@ function set_autotag(...$data_list){
     return $out_list;
 }
 function convert_to_br(string $str){
-    return preg_replace_callback('/\r\n?/', function($m) {
+    return preg_replace_callback('/\r?\n/', function($m) {
         return '<br/>';
     }, $str);
 }
