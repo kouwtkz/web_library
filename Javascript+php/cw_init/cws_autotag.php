@@ -374,7 +374,7 @@ function convert_to_br(string $str){
     }, $str);
 }
 function escape_to_br(string $str){
-    return preg_replace_callback('/(\\\\?)(\<br\/\>)/', function($m) {
+    return preg_replace_callback('/(\\\\?)(\<br\/\>|$)/', function($m) {
         if ($m[1] === '') {
             return $m[2];
         } else {
@@ -1121,7 +1121,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                                 $close = !($b_close || $open);
                                 if ($open && !$close) {
                                     $align_mode = $align_str;
-                                    if ($tail === '') $tail  = '\\';
+                                    if ($retval === '' && $tail === '') $tail  = '\\';
                                 } else {
                                     $align_mode = '';
                                 }
