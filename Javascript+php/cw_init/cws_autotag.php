@@ -369,7 +369,13 @@ function set_autotag(...$data_list){
     return $out_list;
 }
 function convert_to_br(string $str){
-    return str_replace("\n", '<br/>', $str);
+    return preg_replace_callback('/(\\\\?)\n/', function($m) {
+        if ($m[1] === '') {
+            return '<br/>';
+        } else {
+            return '';
+        }
+    }, $str);
 }
 // parse_urlのhost側を組み立てる
 function join_parsed_host($parsed_url) {
@@ -623,6 +629,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     $target = '__default__';
     $class = '';
     $style = '';
+    $align_mode = '';
     $opt = array();
     $get_mult_opt = function($key, $default) use (&$opt, &$g_opt) {
         return get_val(get_mult($key, $g_opt, $opt), $default);
@@ -834,12 +841,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         return $text;
     };
     $callback_hatena = function($m, $text, $linkable = false)
-     use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, &$internal, $callback_url, &$opt) {
+     use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class,
+            &$style, &$internal, &$callback_url, &$align_mode, &$opt) {
         if ($linkable) {
             return $m[0];
         }
         $hatena_func = function($get_str)
-        use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, $callback_url, &$opt) {
+        use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, &$callback_url, &$opt) {
             $set_link_flag = true;
             $add_tag_list = array();
             $data_origin = "[$get_str]";
@@ -1072,15 +1080,19 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         };
         $text = brackets_loop($text, $hatena_func);
         $heading_re = '/^(\s*)([*%]+)(.*)$/m';
-        $text = preg_replace_callback($heading_re, function($m) {
+        $text = preg_replace_callback($heading_re, function($m) use (&$align_mode) {
             $space_len = strlen($m[1]);
-            $retval = $m[3]; $mnb_tag = 0;
+            $retval = $m[3]; $tail = '';
+            if (preg_match('/^(.*)([\\\\\s]+)/', $retval, $m2)) {
+                $retval = $m2[1]; $tail = $m2[2];
+            }
+            $mnb_tag = 0;
             if (strlen($m[1]) > 0) {
                 if (substr($m[1], -1) === ' ') $m[1] = substr($m[1], 0, $space_len - 1);
             } else {
                 $strqty = get_strqty($m[2], false);
                 foreach($strqty as $symbol_key => &$symbol_len) {
-                    $tag = ''; $style = '';
+                    $tag = ''; $style = ''; $b_close = false; $open = true; $close = true;
                     switch ($symbol_key) {
                         case '*':
                             switch ($symbol_len % 3) {
@@ -1092,19 +1104,35 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                         case '%':
                             $tag = 'div';
                             switch ($symbol_len % 3) {
-                                case 1: $style .= 'text-align:center'; break;
-                                case 2: $style .= 'text-align:right'; break;
-                                case 0: $style .= 'text-align:left'; break;
+                                case 1: $align_str = 'center'; break;
+                                case 2: $align_str = 'right'; break;
+                                case 0: $align_str = 'left'; break;
+                                default: $align_str = ''; break;
+                            }
+                            if ($align_str !== '') $style .= 'text-align:'.$align_str;
+                            if ($symbol_len >= 4) {
+                                $b_close = ($align_mode !== '');
+                                $open = ($align_str !== $align_mode);
+                                $close = !($b_close || $open);
+                                if ($open && !$close) {
+                                    $align_mode = $align_str;
+                                    if ($tail === '') $tail  = '\\';
+                                } else {
+                                    $align_mode = '';
+                                }
                             }
                         break;
                     }
                     if ($style !== '') $style = " style='$style'";
                     $tmp_tag = $tag !== '';
                     $mnb_tag |= $tmp_tag;
-                    if ($tag !== '') $retval = '<'.$tag.$style.'>'.$retval.'</'.$tag.'>';
+                    if ($tag !== '') {
+                        $retval = ($b_close ? "</$tag>" : '')
+                            . ($open ? "<$tag$style>" : '') . $retval . ($close ? "</$tag>" : '');
+                    }
                 }
-                
             }
+            $retval = $retval.$tail;
             if ($mnb_tag) {
                 return $retval;
             } else {
@@ -1170,15 +1198,20 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     foreach($arr as $var) {
         $htmlspecialchars = $g_htmlspecialchars && get_val($var, $g_arr_htmlsp, true);
         $text = get_val($var, $g_opt['arr_before_text'], '') . get_val($var, $g_opt['arr_text'], '') . get_val($var, $g_opt['arr_after_text'], '');
+        $text = preg_replace('/\r\n?/', "\n", $text);
         $text = convert_to_href_decode($text);
         if ($htmlspecialchars) $text = htmlspecialchars($text);
-        $text = convert_to_br($text);
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
+        if ($align_mode !== '') { $text .= '</div>'; $align_mode = ''; }
+        $text = convert_to_br($text);
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $loop_func($text, $var);
     }
     return $out_html_list;
 }
+    // if (preg_match('/\s$/', $str)) {
+    //     var_dump($str);
+    // }
 // set_autolinkのクラス版、ループは-1から開始するため、
 // while($autolink->next()){}でループを回すことができます
 class AutoLink {
