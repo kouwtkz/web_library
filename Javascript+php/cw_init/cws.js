@@ -432,7 +432,7 @@ if (cws.update) {
         request_ary = cws.check.def(request_ary, null);
         path = cws.check.def(path, cws.v.href);
         var rq = new Object();
-        var query_str = decodeURI((path + "?").replace(/^.*?\?/,"").replace(/.$/, ""));
+        var query_str = decodeURI((path.replace(/^([^#]*)#.*$/,"$1") + "?").replace(/^.*?\?|.$/g, "")).replace("%23", "#");
         var spl = query_str.split("&");
         var keys = Object.keys(spl);
         for (var i = 0; i < keys.length; i++) {
@@ -539,16 +539,17 @@ if (cws.update) {
         var q = cws.to.querystr(cws.to.merge(cws.get.request(path), array_list), true);
         return _path + ((q === '') ? '' : '?') + q;
     }
-    cws.to.form_append = function(request, formdata_obj){
+    cws.to.form_append = function(request, formdata_obj, merge_mode){
         request = cws.check.nullvar(request, new Object());
         formdata_obj = cws.check.nullvar(formdata_obj, new FormData());
+        merge_mode = cws.check.nullvar(merge_mode, true);
         keys = Object.keys(request);
         for (var i = 0; i < keys.length; i++) {
             var key = keys[i];
-            var jadge = key;
+            var judge = key;
             var val = request[keys[i]];
-            if (typeof(val)!=="object") {jadge = key + val;}
-            if (jadge !== "") {
+            if (typeof(val)!=="object") {judge = key + val;}
+            if (!(merge_mode && formdata_obj.has(key)) && (judge !== "")) {
                 if (typeof(val) !== 'object') {
                     formdata_obj.append(key, val);
                 } else {
