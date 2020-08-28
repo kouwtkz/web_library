@@ -715,7 +715,7 @@ if (cws.update) {
     cws.ajax.id_stock = new Object();
     cws.ajax.result = new Object();
     cws.ajax.v = new Object();
-    // argsの引数は主に"action", "request", "onload", "onerror", "onbusy", "id"
+    // argsの引数は主に"action", "request", "onload", "onerror", "onbusy", "id", "timeout"
     // 他に"ansynch", "method", "form", "catch", "type", "filelist", "option":0
     cws.ajax.run = function(args) {
         if (!cws.ajax.enable) return false;
@@ -770,6 +770,7 @@ if (cws.update) {
                 ansynch = cws.v.defaultAnsynch;
             }
             var xr = new XMLHttpRequest();
+            if (typeof(args["timeout"]) !== 'undefined') xr.timeout = args["timeout"];
             var restype = cws.check.key(args, "type");
             switch (restype.toLowerCase()) {
                 case "blob": restype = "blob"; break;
