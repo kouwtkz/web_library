@@ -153,8 +153,12 @@ class DB{
         if ($dbh === null) return null;
         try{
             $sth = $dbh->prepare($sql);
-            if (count($param) === 0 && strpos($sql, ';') !== false) {
-                $dbi->pdo->exec($sql);
+            if (count($param) === 0) {
+                if (preg_match('/^\s*SELECT/i', $sql)) {
+                    $dbi->pdo->query($sql);
+                } else {
+                    $dbi->pdo->exec($sql);
+                }
             } else {
                 self::bind($param, $sth, $dbi->flag_bind_param);
                 $sth->execute();
