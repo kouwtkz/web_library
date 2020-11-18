@@ -602,7 +602,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     global $callback_tagesc, $cws;
     $g_opt = array('arr_text' => 'text', 'arr_after_text' => 'after_text', 'arr_before_text' => 'before_text',
         'arr_htmlsp' => array('htmlsp', 'htmlspecialchars'), 'htmlsp' => true, 'autoplay' => false,
-        'reply_link' => '$0');
+        'reply_link' => '$0', 'reply_link_re' => '/^(\?)(id\=)(.*)$/');
     if (!\is_null($arg_g_opt)){
         if (\is_array($arg_g_opt)) {
             $g_opt = array_merge($g_opt, $arg_g_opt);
@@ -1165,7 +1165,11 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     $reply_re = '/(^|\s)(@)(\w+)([\:]?)/';
     $callback_reply = function($m, $text) use (&$reply_re, &$g_opt) {
         $text = preg_replace_callback($reply_re, function($m) use (&$g_opt){
-            $reply_link = preg_replace('/^(\?id\=)(.*)$/', $g_opt['reply_link'], '?id='.$m[3]);
+            if (is_callable($g_opt['reply_link'])) {
+                $reply_link = preg_replace_callback($g_opt['reply_link_re'], $g_opt['reply_link'], '?id='.$m[3]);
+            } else {
+                $reply_link = preg_replace($g_opt['reply_link_re'], $g_opt['reply_link'], '?id='.$m[3]);
+            }
             $id_at = '@'.$m[3];
             $after = $m[4] == ':' ? '' : $m[4];
             return $m[1].'<a class="reply" href="'.$reply_link.'">'.$id_at.'</a>'.$after;
@@ -1184,16 +1188,16 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     $cb_bitnot_htnurl = true && !$cb_bitnot_hatena && !$cb_bitnot_url;
 
     $cb_bit_default_hatena = true && !$cb_bitnot_url;
-    if (get_val($g_opt, 'cbf_hatena', $cb_bit_default_hatena)) $func_list[] = $callback_hatena; 
+    if (get_val($g_opt, 'cbf_hatena', $cb_bit_default_hatena)) $func_list[] = $callback_hatena;
 
     $cb_bit_default_url = true && !$cb_bitnot_hatena;
-    if (get_val($g_opt, 'cbf_url', $cb_bit_default_url)) $func_list[] = $callback_url; 
+    if (get_val($g_opt, 'cbf_url', $cb_bit_default_url)) $func_list[] = $callback_url;
 
-    if (get_val($g_opt, 'cbf_tag', $cb_bitnot_htnurl)) $func_list[] = $callback_tag; 
-    if (get_val($g_opt, 'cbf_reply', $cb_bitnot_htnurl)) $func_list[] = $callback_reply; 
-    if (get_val($g_opt, 'cbf_search', $cb_bitnot_htnurl)) $func_list[] = $callback_search; 
+    if (get_val($g_opt, 'cbf_tag', $cb_bitnot_htnurl)) $func_list[] = $callback_tag;
+    if (get_val($g_opt, 'cbf_reply', $cb_bitnot_htnurl)) $func_list[] = $callback_reply;
+    if (get_val($g_opt, 'cbf_search', $cb_bitnot_htnurl)) $func_list[] = $callback_search;
 
-    if (get_val($g_opt, 'cb_after', null) !== null) $func_list[] = $g_opt['cb_after']; 
+    if (get_val($g_opt, 'cb_after', null) !== null) $func_list[] = $g_opt['cb_after'];
 
     $permission = get_val($g_opt, 'permission', array());
     

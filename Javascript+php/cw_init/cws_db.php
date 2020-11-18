@@ -34,7 +34,7 @@ class DBI{
         'name' => '',            # 使うデータベースの名前
         'servise' => 'sqlite',   # 使用するデータベース、標準でsqliteにした
         'charset' => 'utf8mb4',  # 扱うときの文字型です
-        'collate' => ''          # 照合順序(とりあえず)
+        'collate' => 'utf8mb4_bin'  # 照合順序、絵文字検索のサポート
     );
     private $db_list = null;
     public $db_active = 0;
@@ -213,12 +213,13 @@ class DB{
             $user=$dbi->db_user;
             $pass = $dbi->db_pass;
             $charset = $dbi->db_charset;
+            $collate = $dbi->db_collate;
             switch(mb_strtolower($servise)){
                 case 'sqlite': case '0':
                     $cnct = 'sqlite:'.$host;
                     break;
                 case 'mysql': case '1':
-                    $cnct = 'mysql:host='.$host.';dbname='.$dbname.';charset='.$charset;
+                    $cnct = 'mysql:host='.$host.';dbname='.$dbname.';charset='.$charset.';collage='.$collate;
                     break;
                 default: $cnct = null;
             }
@@ -453,6 +454,8 @@ class DB{
         if (is_array($args)) {
             $len = isset($args['size']) ? $args['size'] : -2;
             $default = isset($args['default']) ? $args['default'] : $default;
+        } else if(is_numeric($args)) {
+            $len = $args;
         } else {
             $len = -2;
         }

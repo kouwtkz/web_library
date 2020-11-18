@@ -1,6 +1,9 @@
 <?php
 namespace cws;
 if (!isset($cws_load)) $cws_load = array();
+if (!isset($cws_local_transfer)) {
+    $cws_local_transfer = true;
+}
 $cws_load['require'] = false;
 // ini_set('display_errors', "On");
 
