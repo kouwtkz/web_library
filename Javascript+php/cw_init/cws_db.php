@@ -4,7 +4,7 @@ namespace cws;
 # cldbから流用、mysqliからPDOベースに書き換えた
 /*
     # 以下がデータベース接続するための設定となる
-    cws\DB::$db_servise = 'mysql';
+    cws\DB::$db_service = 'mysql';
     cws\DB::$db_host = '';
 	cws\DB::$db_name = '';
 	cws\DB::$db_user = '';
@@ -32,7 +32,7 @@ class DBI{
         'user' => '',            # ログインするユーザー名
         'pass' => '',            # ログインするときのパスワード
         'name' => '',            # 使うデータベースの名前
-        'servise' => 'sqlite',   # 使用するデータベース、標準でsqliteにした
+        'service' => 'sqlite',   # 使用するデータベース、標準でsqliteにした
         'charset' => 'utf8mb4',  # 扱うときの文字型です
         'collate' => 'utf8mb4_bin'  # 照合順序、絵文字検索のサポート
     );
@@ -86,13 +86,13 @@ class DBI{
         $change_db = false;
         $local_db_obj = $this->db_obj;
         global $cws_cookie_use, $cws_flag_session;
-        global $cws_db_servise, $cws_db_host, $cws_db_name, $cws_db_user, $cws_db_pass;
+        global $cws_db_service, $cws_db_host, $cws_db_name, $cws_db_user, $cws_db_pass;
         global $cws_table_log, $cws_flag_log, $cws_err_dump, $cws_preg_ignore_ip;
         global $cws_access_reboot, $cws_cookie_reboot;
         if (isset($cws_cookie_use)) { self::set_value_after($this->cookie_use, $cws_cookie_use); }
         if (isset($cws_flag_session)) { self::set_value_after($this->flag_session, $cws_flag_session); }
         if ($changeable_db) {
-            if (isset($cws_db_servise)) { $change_db = true; $local_db_obj['servise'] = $cws_db_servise; }
+            if (isset($cws_db_service)) { $change_db = true; $local_db_obj['service'] = $cws_db_service; }
             if (isset($cws_db_host)) { $change_db = true; $local_db_obj['host'] = $cws_db_host; }
             if (isset($cws_db_name)) { $change_db = true; $local_db_obj['name'] = $cws_db_name; }
             if (isset($cws_db_user)) { $change_db = true; $local_db_obj['user'] = $cws_db_user; }
@@ -148,7 +148,7 @@ class DB{
     public $pdo = null;             # PDOのコネクトオブジェクト
     function execute($sql, ...$param) {
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
+        $service = $dbi->db_service;
         $dbh = $dbi->pdo;
         if ($dbh === null) return null;
         try{
@@ -207,14 +207,14 @@ class DB{
             $this->dbi = $dbi;
         for ($i = 0; $i < $dbi->db_count; $i++) {
             $dbi->db_active = $i;
-            $servise = $dbi->db_servise;
+            $service = $dbi->db_service;
             $host = $dbi->db_host;
             $dbname = $dbi->db_name;
             $user=$dbi->db_user;
             $pass = $dbi->db_pass;
             $charset = $dbi->db_charset;
             $collate = $dbi->db_collate;
-            switch(mb_strtolower($servise)){
+            switch(mb_strtolower($service)){
                 case 'sqlite': case '0':
                     $cnct = 'sqlite:'.$host;
                     break;
@@ -299,8 +299,8 @@ class DB{
     }
     function set_inc($primary = true){
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 $txt = 'INTEGER ';
                 if ($primary) $txt .= $this->set_primary(true);
@@ -318,8 +318,8 @@ class DB{
     }
     function set_inc_foot($index_name = 'ID'){
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 $txt = '';
                 break;
@@ -340,8 +340,8 @@ class DB{
             $bits = 1;
         }
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 $txt = 'INTEGER';
                 break;
@@ -370,8 +370,8 @@ class DB{
             $int_size = 4;
         }
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 $txt = 'INTEGER';
                 break;
@@ -406,8 +406,8 @@ class DB{
             $float_size = 8;
         }
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 $txt = 'REAL';
                 break;
@@ -436,8 +436,8 @@ class DB{
             $int_size = 4;
         }
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
             case 'mysql': case '1':
             default:
@@ -460,8 +460,8 @@ class DB{
             $len = -2;
         }
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 $txt = 'TEXT';
                 break;
@@ -491,8 +491,8 @@ class DB{
             $len = -2;
         }
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 $txt = 'NONE';
                 break;
@@ -528,9 +528,9 @@ class DB{
     }
     function set_time($notnull = false, $dateonly = false, $default_timestamp = false, $type_timestamp = false){
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
+        $service = $dbi->db_service;
         $add_default = '';
-        switch(mb_strtolower($servise)){
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 $txt = 'TEXT';
                 if ($default_timestamp || $type_timestamp)
@@ -555,8 +555,8 @@ class DB{
     }
     function now($localtime = true){
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 if ($localtime)
                     return "DATETIME('now', 'localtime')";
@@ -574,8 +574,8 @@ class DB{
     }
     function reg_classify($reg_str = '', $like_str = '', $grob_str = ''){
         $dbi = $this->dbi;
-        $servise = $dbi->db_servise;
-        switch(mb_strtolower($servise)){
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 if ($grob_str !== '') {
                     return array("GLOB", $grob_str);
