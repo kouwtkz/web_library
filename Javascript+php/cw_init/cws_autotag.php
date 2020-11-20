@@ -612,8 +612,8 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     }
     $key_q = get_val($g_opt, 'key_q', null);
     $request_q = get_val($g_opt, 'q', get_val($_REQUEST, $key_q, ''));
-    $highlight_q =get_val($g_opt, 'highlight_q', $request_q); 
-    $reply_link =get_val($g_opt, 'highlight_q', $request_q); 
+    $highlight_q = "$request_q " . get_val($g_opt, 'highlight_q', '');
+    $highlight_q = preg_replace('/^\s+|\s+$|(\s)\s*/', '$1', $highlight_q);
     $out_html_list = array();
     if ($loop_func === null) $loop_func = function($text, $var) use (&$out_html_list) { $out_html_list[] = $text; };
     $_q_str = $request_q;

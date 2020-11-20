@@ -166,8 +166,7 @@ class DB{
             $dbi->err_msg = '';
         } catch(\Exception $e) {
             $dbi->err_msg = join('; ', $e->errorInfo);
-            if ($dbi->err_dump) { \var_dump($sql . "\n" . $dbi->err_msg); 
-            };
+            if ($dbi->err_dump) { \var_dump($sql . "\n" . $dbi->err_msg); };
             $sth = null;
         }
         return $sth;
@@ -193,7 +192,8 @@ class DB{
         $tmp_err_dump = $dbi->err_dump;
         $dbi->err_dump = false;
         if ($value_mode) {
-            $result = intval($this->execute($sql, $value)->fetch()['count']) > 0;
+            $result = $this->execute($sql, $value);
+            $result = is_null($result) ? false : (intval($result->fetch()['count']) > 0);
         } else {
             $result = $this->execute($sql);
         }
