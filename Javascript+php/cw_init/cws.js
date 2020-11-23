@@ -432,8 +432,11 @@ if (cws.update) {
         request_ary = cws.check.def(request_ary, null);
         path = cws.check.def(path, cws.v.href);
         var rq = new Object();
-        var query_str = decodeURI((path.replace(/^([^#]*)#.*$/,"$1") + "?").replace(/^.*?\?|.$/g, "")).replace("%23", "#");
-        var spl = query_str.split("&");
+        var query_str = decodeURI((path.replace(/^([^#]*)#.*$/,"$1") + "?").replace(/^.*?\?|.$/g, ""))
+            .replace('+', ' ').replace('&', '\\\n\r\\').replace(/%(\w\w)/g, function(m, m1){
+                return String.fromCharCode(parseInt(m1, 16));
+            });
+        var spl = query_str.split('\\\n\r\\');
         var keys = Object.keys(spl);
         for (var i = 0; i < keys.length; i++) {
             var spl2 = (spl[i] + "=").split("=");

@@ -572,6 +572,19 @@ class DB{
         }
         return '';
     }
+    function regable($dbi = null){
+        if (is_null($dbi)) $dbi = $this->dbi;
+        $service = $dbi->db_service;
+        switch(mb_strtolower($service)){
+            case 'mysql': case '1':
+                return true;
+            break;
+            default:
+                return false;
+            break;
+        }
+        return '';
+    }
     function reg_classify($reg_str = '', $like_str = '', $grob_str = ''){
         $dbi = $this->dbi;
         $service = $dbi->db_service;
