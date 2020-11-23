@@ -865,16 +865,17 @@ if (cws.update) {
     cws.cookie.enable = Boolean(cws.check.key(cws.v, 'use_cookie', false));
     cws.cookie.out = function(key, value, time, path) {
         value = cws.check.def(value, 0);
-        time = cws.check.nullvar(time, '');
+        time = cws.check.nullvar(time, null);
         path = cws.check.nullvar(path, '');
         if (cws.cookie.enable) {
             var setDate = '';
             if (value === null) {
                 value = 0;
                 setDate = ';max-age=0';
-            } else if (time === '' || time === null) {
+            } else if (time === '') {
+            } else if (time === null) {
                 setDate = ';max-age=999999999';
-            } else if (time.match(/^[\+\-]?[\d]+$/)) {
+            } else if (time.toString().match(/^[\+\-]?[\d]+$/)) {
                 setDate = ';max-age=' + time;
             } else {
                 setDate = ';expires=' + cws.to.strtotime(time).toGMTString();
@@ -891,13 +892,18 @@ if (cws.update) {
     cws.cookie.remove = function(key) {
         return cws.cookie.out(key, null);
     }
-    cws.cookie.get = function(key) {
+    cws.cookie.get = function(key, pop) {
         key = cws.check.def(key, null);
+        pop = cws.check.def(pop, false);
         if (key === null) { return document.cookie; }
         var cookie = ' ' + document.cookie + ';';
-        var re_key = new RegExp(' ' + key + '=([^;]+)');
+        var use_key = key.replace(/([<>.+*?(){}\^$|\[\]\\])/g, '\\$1');
+        var re_key = new RegExp(' ' + use_key + '=([^;]+)');
+        console.log(use_key);
         var m = cookie.match(re_key);
         if (m) {
+            if (pop) cws.cookie.remove(key);
+            console.log(m[1]);
             return m[1];
         } else {
             return null;
