@@ -824,29 +824,32 @@ if (cws.update) {
         }
     }
     cws.storage = new Object();
+    cws.storage.session = new Object();
     cws.storage.def_json = false;
-    cws.storage.out = function(key, value, json_convert) {
-        key = cws.check.nullvar(key, 'key');
+    cws.storage.out = function(key, value, json_convert, session) {
+        key = cws.check.def(key, 'key');
         value = cws.check.def(value, null);
         json_convert = cws.check.nullvar(json_convert, cws.storage.def_json);
-        var storage = sessionStorage;
-        storage.removeItem(key);
+        session = cws.check.nullvar(session, false);
+        var u_storage = session ? sessionStorage : localStorage;
+        u_storage.removeItem(key);
         if (value !== null) {
             if (json_convert) {
                 value = JSON.stringify(value);
             }
-            storage.setItem(key, value);
+            u_storage.setItem(key, value);
         }
     }
-    cws.storage.remove = function(key) {
-        cws.storage.out(key);
+    cws.storage.remove = function(key, session) {
+        cws.storage.out(key, null, false, session);
     }
-    cws.storage.get = function(key, remove_flag, json_convert) {
-        key = cws.check.nullvar(key, 'key');
+    cws.storage.get = function(key, remove_flag, json_convert, session) {
+        var key = cws.check.nullvar(key, 'key');
         remove_flag = cws.check.nullvar(remove_flag, false);
         json_convert = cws.check.nullvar(json_convert, cws.storage.def_json);
-        var storage = sessionStorage;
-        var getstr = storage[key];
+        session = cws.check.nullvar(session, false);
+        var u_storage = session ? sessionStorage : localStorage;
+        var getstr = u_storage[key];
         if (typeof(getstr) === 'undefined') getstr = "";
         if (json_convert) {
             if (getstr == "") {
@@ -856,8 +859,18 @@ if (cws.update) {
                 catch(e){ getstr = {value: getstr}; }
             }
         }
-        if (remove_flag) cws.storage.remove(key);
+        if (remove_flag) cws.storage.remove(key, session);
         return getstr;
+    }
+
+    cws.storage.session.out = function(key, value, json_convert) {
+        return cws.storage.out(key, value, json_convert, true);
+    }
+    cws.storage.session.remove = function(key) {
+        cws.storage.out(key, null, false, true);
+    }
+    cws.storage.session.get = function(key, remove_flag, json_convert) {
+        return cws.storage.get(key, remove_flag, json_convert, true);
     }
     
     // Cookieの書き出しは制限、読み込みは制限しない
@@ -899,7 +912,6 @@ if (cws.update) {
         var cookie = ' ' + document.cookie + ';';
         var use_key = key.replace(/([<>.+*?(){}\^$|\[\]\\])/g, '\\$1');
         var re_key = new RegExp(' ' + use_key + '=([^;]+)');
-        console.log(use_key);
         var m = cookie.match(re_key);
         if (m) {
             if (pop) cws.cookie.remove(key);
