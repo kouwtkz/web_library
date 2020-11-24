@@ -1,7 +1,7 @@
 if (typeof(window.cws) === 'undefined') window.cws = new Object();
 // IEは10以降は保証、9以下は一部動かないかも
 (function() {
-    var vertion = '2.6.0';
+    var vertion = '2.6.1';
     cws.update = false;
     if (typeof(cws.vertion) === 'undefined') cws.vertion = '0';
     if (vertion > cws.vertion) {
@@ -856,13 +856,13 @@ if (cws.update) {
         var is_null_gotvar = typeof(gotvar) === 'undefined';
         if (json_convert) {
             if (is_null_gotvar || gotvar == '') {
-                gotvar = cws.check.nullvar(nullvar, cws.storage.def_json_null);;
+                gotvar = cws.check.def(nullvar, cws.storage.def_json_null);;
             } else {
                 try{ gotvar = JSON.parse(gotvar); }
                 catch(e){ gotvar = {value: gotvar}; }
             }
         } else {
-            if (is_null_gotvar) gotvar = cws.check.nullvar(nullvar, cws.storage.def_null);;
+            if (is_null_gotvar) gotvar = cws.check.def(nullvar, cws.storage.def_null);;
         }
         if (remove_flag && !is_null_gotvar) cws.storage.remove(key, session);
         return gotvar;
