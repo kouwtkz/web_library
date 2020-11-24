@@ -1,7 +1,7 @@
 if (typeof(window.cws) === 'undefined') window.cws = new Object();
 // IEは10以降は保証、9以下は一部動かないかも
 (function() {
-    var vertion = '2.5.1';
+    var vertion = '2.6.0';
     cws.update = false;
     if (typeof(cws.vertion) === 'undefined') cws.vertion = '0';
     if (vertion > cws.vertion) {
@@ -826,8 +826,10 @@ if (cws.update) {
     cws.storage = new Object();
     cws.storage.session = new Object();
     cws.storage.def_json = false;
+    cws.storage.def_json_null = null;
+    cws.storage.def_null = '';
     cws.storage.out = function(key, value, json_convert, session) {
-        key = cws.check.def(key, 'key');
+        key = cws.check.def(key, 'k');
         value = cws.check.def(value, null);
         json_convert = cws.check.nullvar(json_convert, cws.storage.def_json);
         session = cws.check.nullvar(session, false);
@@ -843,24 +845,27 @@ if (cws.update) {
     cws.storage.remove = function(key, session) {
         cws.storage.out(key, null, false, session);
     }
-    cws.storage.get = function(key, remove_flag, json_convert, session) {
-        var key = cws.check.nullvar(key, 'key');
-        remove_flag = cws.check.nullvar(remove_flag, false);
-        json_convert = cws.check.nullvar(json_convert, cws.storage.def_json);
+    cws.storage.get = function(key, remove_flag, json_convert, nullvar, session) {
         session = cws.check.nullvar(session, false);
         var u_storage = session ? sessionStorage : localStorage;
-        var getstr = u_storage[key];
-        if (typeof(getstr) === 'undefined') getstr = "";
+        if (typeof(key) === 'undefined') return u_storage;
+        var key = cws.check.nullvar(key, 'k');
+        remove_flag = cws.check.nullvar(remove_flag, false);
+        json_convert = cws.check.nullvar(json_convert, cws.storage.def_json);
+        var gotvar = u_storage[key];
+        var is_null_gotvar = typeof(gotvar) === 'undefined';
         if (json_convert) {
-            if (getstr == "") {
-                getstr = null;
+            if (is_null_gotvar || gotvar == '') {
+                gotvar = cws.check.nullvar(nullvar, cws.storage.def_json_null);;
             } else {
-                try{ getstr = JSON.parse(getstr); }
-                catch(e){ getstr = {value: getstr}; }
+                try{ gotvar = JSON.parse(gotvar); }
+                catch(e){ gotvar = {value: gotvar}; }
             }
+        } else {
+            if (is_null_gotvar) gotvar = cws.check.nullvar(nullvar, cws.storage.def_null);;
         }
-        if (remove_flag) cws.storage.remove(key, session);
-        return getstr;
+        if (remove_flag && !is_null_gotvar) cws.storage.remove(key, session);
+        return gotvar;
     }
 
     cws.storage.session.out = function(key, value, json_convert) {
@@ -869,8 +874,8 @@ if (cws.update) {
     cws.storage.session.remove = function(key) {
         cws.storage.out(key, null, false, true);
     }
-    cws.storage.session.get = function(key, remove_flag, json_convert) {
-        return cws.storage.get(key, remove_flag, json_convert, true);
+    cws.storage.session.get = function(key, remove_flag, json_convert, nullvar) {
+        return cws.storage.get(key, remove_flag, json_convert, nullvar, true);
     }
     
     // Cookieの書き出しは制限、読み込みは制限しない
