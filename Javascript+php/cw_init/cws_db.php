@@ -585,29 +585,94 @@ class DB{
         }
         return '';
     }
-    function reg_classify($reg_str = '', $like_str = '', $grob_str = ''){
+    function collater($i_up_low = false, $i_full_width = false, $sql_collate = true, $db_def = true){
+        $dbi = $this->dbi;
+        $collate = $dbi->db_collate;
+        $return_collate = '';
+        if ($db_def) {
+            $service = $dbi->db_service;
+        } else {
+            $service = 'mysql';
+        }
+        switch(mb_strtolower($service)){
+            case 'mysql': case '1':
+                if (strpos($collate, 'utf8') !== false) {
+                    if (strpos($collate, 'mb4') === false) {
+                        if ($i_full_width) {
+                            $return_collate = 'utf8_unicode_ci';
+                        } else if ($i_up_low) {
+                            $return_collate = 'utf8_general_ci';
+                        } else {
+                            $return_collate = 'utf8_bin';
+                        }
+                    } else {
+                        if ($i_full_width) {
+                            $return_collate = 'utf8mb4_unicode_ci';
+                        } else if ($i_up_low) {
+                            $return_collate = 'utf8mb4_general_ci';
+                        } else {
+                            $return_collate = 'utf8mb4_bin';
+                        }
+                    }
+                }
+            break;
+        }
+        if ($sql_collate && $return_collate !== '') $return_collate = " COLLATE $return_collate";
+        return $return_collate;
+    }
+    function reg_classify($reg_str = '', $like_str = '', $grob_str = '', $i_up_low = null){
         $dbi = $this->dbi;
         $service = $dbi->db_service;
+        $return_type = '';
+        $return_collate = '';
+        $return_str = '';
+        $i_full_width = false;
         switch(mb_strtolower($service)){
             case 'sqlite': case '0':
                 if ($grob_str !== '') {
-                    return array("GLOB", $grob_str);
+                    $return_type = 'GLOB';
                 } else {
-                    return array("LIKE", $like_str);
+                    $return_type = 'LIKE';
                 }
             break;
             case 'mysql': case '1':
                 if ($reg_str === '' && $like_str !== '') {
-                    return array("LIKE", $like_str);
+                    $return_type = 'LIKE';
                 } else {
-                    return array('REGEXP', $reg_str);
+                    $return_type = 'REGEXP';
                 }
             break;
             default:
-                return array('LIKE', $like_str);
+                $return_type = 'LIKE';
             break;
         }
-        return '';
+        switch($return_type){
+            case 'REGEXP':
+                if (preg_match('/^([^\w\s\\\\])([\d\D]*)([^\w\s\\\\])(\w*)$/', $reg_str, $m)) {
+                    if ($m[1] === $m[3] || (strlen($m13 = $m[1].$m[3]) === 2 && (($m13) === '()' || $m13 === '{}' || $m13 === '[]' || $m13 === '<>'))) {
+                        $reg_str = $m[2];
+                        if (strpos($m[4], 'i') !== false) {
+                            $i_up_low = true;
+                        }
+                        if (strpos($m[4], 'f') !== false) {
+                            $i_up_low = true;
+                            $i_full_width = true;
+                        }
+                    }
+                }
+                $return_str = $reg_str;
+            break;
+            case 'LIKE':
+                $return_str = $like_str;
+            break;
+            case 'GLOB':
+                $return_str = $grob_str;
+            break;
+        }
+        if (!is_null($i_up_low)){
+            $return_collate = $this->collater($i_up_low, $i_full_width, true);
+        }
+        return array($return_type, $return_str, $return_collate);
     }
     static function create($dbi = null){
         if (is_null($dbi)) $dbi = new DBI();
