@@ -909,7 +909,6 @@ if (cws.update) {
         var m = cookie.match(re_key);
         if (m) {
             if (pop) cws.cookie.remove(key);
-            console.log(m[1]);
             return m[1];
         } else {
             return null;
