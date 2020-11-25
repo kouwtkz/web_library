@@ -161,44 +161,46 @@ if (cws.update) {
             return '';
         }
     }
-    // URLの?以降を取得する関数、更に取得したものを定義する
-    cws.get.request = function(href, auto_newDate) {
-        href = cws.check.def(href, location.href);
-        if (typeof(href) === 'object') return href;
-        auto_newDate = Boolean(cws.check.def(auto_newDate, true));
-        var arg = new Object();
-        var spl = href.split('#')[0].split('?');
-        if (spl.length === 1) return new Object();
-        var qry = spl[spl.length - 1];
-        var pair = qry.split('&');
-        for (var i = 0; pair[i]; i++) {
-            var kv = pair[i].split('=');
-            var value = decodeURI(cws.check.key(kv, 1, ''));
-            if (typeof(value) === 'string' && auto_newDate) {
-                if (value === '') {}
-                else if (value.match(cws.v.re.time)){
-                    var newDate = new Date(value);
-                    if (newDate.toString() !== "Invalid Date") value = newDate;
-                } else if (!isNaN(value)){
-                    value = Number(value);
-                } else {
-                    try{
-                        var e = eval(value);
-                        switch (typeof(e)){
-                            case 'number':
-                            case 'string':
-                            case 'undefined':
-                                break;
-                            default:
-                                value = e;
-                                break;
-                        }
-                    } catch(e) {}
+    cws.get.request = function(path, auto_type){
+        path = cws.check.nullvar(path, cws.v.href);
+        auto_type = Boolean(cws.check.nullvar(auto_type, false));
+        var rq = new Object();
+        var query_str = decodeURI((path.replace(/^([^#]*)#.*$/,"$1") + "?").replace(/^.*?\?|.$/g, ""))
+            .replace(/\+/g, ' ').replace(/&/g, '\\\n\r\\').replace(/%(\w\w)/g, function(m, m1){
+                return String.fromCharCode(parseInt(m1, 16));
+            });
+        var spl = query_str.split('\\\n\r\\');
+        var keys = Object.keys(spl);
+        for (var i = 0; i < keys.length; i++) {
+            var spl2 = (spl[i] + "=").split("=");
+            if ((spl2[0])!=='') {
+                var value = spl2[1];
+                if (typeof(value) === 'string' && auto_type) {
+                    if (value === '') {}
+                    else if (value.match(cws.v.re.time)){
+                        var newDate = new Date(value);
+                        if (newDate.toString() !== "Invalid Date") value = newDate;
+                    } else if (!isNaN(value)){
+                        value = Number(value);
+                    } else {
+                        try{
+                            var e = eval(value);
+                            switch (typeof(e)){
+                                case 'number':
+                                case 'string':
+                                case 'undefined':
+                                    break;
+                                default:
+                                    value = e;
+                                    break;
+                            }
+                        } catch(e) {}
+                    }
                 }
+                rq[spl2[0]] = value;
             }
-            arg[kv[0]] = value;
         }
-        return arg;
+        return rq;
     }
     // GETの取得、querysではなくここに入る
     cws.v.request = cws.get.request();
@@ -428,21 +430,8 @@ if (cws.update) {
         }
         return obj_a;
     }
-    cws.to.request_array = function(request_ary, path){
-        request_ary = cws.check.def(request_ary, null);
-        path = cws.check.def(path, cws.v.href);
-        var rq = new Object();
-        var query_str = decodeURI((path.replace(/^([^#]*)#.*$/,"$1") + "?").replace(/^.*?\?|.$/g, ""))
-            .replace('+', ' ').replace('&', '\\\n\r\\').replace(/%(\w\w)/g, function(m, m1){
-                return String.fromCharCode(parseInt(m1, 16));
-            });
-        var spl = query_str.split('\\\n\r\\');
-        var keys = Object.keys(spl);
-        for (var i = 0; i < keys.length; i++) {
-            var spl2 = (spl[i] + "=").split("=");
-            if ((spl2[0])!=='') rq[spl2[0]] = spl2[1];
-        }
-        return rq;
+    cws.to.request_array = function(path, auto_type){
+        return cws.get.request(path, auto_type);
     }
     cws.to.form_array = function(data, upload_match_class) {
         var obj = new Object();
@@ -751,7 +740,7 @@ if (cws.update) {
             href = cws.check.key(args, ['action','href'], href);
             if (href === '') href = cws.v.href;
             query = cws.to.merge(
-                cws.to.merge(cws.to.request_array(href), query)
+                cws.to.merge(cws.get.request(href), query)
                 , cws.to.merge(cws.check.key(args, "request", new Object()), cws.check.key(args, "query", new Object())));
             href = href.replace(/\?.*$/, "");
             var method = cws.check.key(form, 'method', "POST");
