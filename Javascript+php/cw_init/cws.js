@@ -202,9 +202,9 @@ if (cws.update) {
         }
         return rq;
     }
-    // GETの取得、querysではなくここに入る
-    cws.v.request = cws.get.request();
-    
+    // デフォルトのGETの取得
+    cws.v.requests = cws.get.request();
+
     cws.get.delimiter = function(re) {
         var delimiter = null;
         var braceDelimiters = cws.v.braceDelimiters;
@@ -936,11 +936,11 @@ if (cws.update) {
             var target_tmp = reload_target;
             reload_target = "reload-interval-cws";
             if (target_type === 'number') {
-                cws.v.request[reload_target] = target_tmp;
+                cws.v.requests[reload_target] = target_tmp;
             }
         }
-        if (cws.check.exists(cws.v.request, reload_target)) {
-            var interval = parseInt(parseFloat(cws.check.key(cws.v.request, reload_target, 0)) * 1000);
+        if (cws.check.exists(cws.v.requests, reload_target)) {
+            var interval = parseInt(parseFloat(cws.check.key(cws.v.requests, reload_target, 0)) * 1000);
             if (interval < 1000) interval = 1000;
             setTimeout(function(){
                 window.location.reload();
