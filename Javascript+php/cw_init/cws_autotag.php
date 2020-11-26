@@ -543,13 +543,29 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
         preg_match_all('/([^\<\>]*)(\\\\)?([\<\>]?)/',$m[0], $m1);
         $text = '';
         $cur = 0;
-        for ($i = 0; $i < count($m1[0]); $i++) {
+        $str = '';
+        $stock = '';
+        $c_i = count($m1[0]);
+        for ($i = 0; $i < $c_i; $i++) {
             $str = $m1[1][$i];
             $esc = $m1[2][$i];
             $check = $m1[3][$i];
             if ($tag_char === '') {
                 if ($esc === '') {
-                    $cur = $i; $tag_char = $check;
+                    $cur = $i;
+                    if ($str !== '' && $stock !== '') {
+                        $str = $stock.$str;
+                        $stock = '';
+                    }
+                    if ($check !== '') {
+                        if ($check !== '>' || $tag_char !== '') {
+                            $tag_char = $check;
+                        } else {
+                            $stock .= $check;
+                            $check = '';
+                            if ($str === '') continue;
+                        }
+                    }
                     if (preg_match('/\S/',$str)) {
                         if ($recall) {
                             foreach ($loop_func as $func) {
@@ -579,7 +595,9 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
                         if (!$tag_permission['style']) $m1[0][$i] = do_tag_escout($m1[0][$i]);
                     case 'title': case '/title': case 'meta':
                         if (!$tag_permission['other']) $m1[0][$i] = do_tag_escout($m1[0][$i]);
-
+                    break;
+                    default:
+                    break;
                 }
                 if ($tag_char === '<') {
                     $tag_char = '';
@@ -588,6 +606,9 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
                 if ($m1[1][$i] === '') $tag_char = '';
             }
             $text .= $m1[0][$i];
+        }
+        if ($stock !== '') {
+            $text .= $stock;
         }
         return $text;
     };
@@ -602,7 +623,11 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     global $callback_tagesc, $cws;
     $g_opt = array('arr_text' => 'text', 'arr_after_text' => 'after_text', 'arr_before_text' => 'before_text',
         'arr_htmlsp' => array('htmlsp', 'htmlspecialchars'), 'htmlsp' => true, 'autoplay' => false,
-        'reply_link' => '$0', 'reply_link_re' => '/^(\?)(id\=)(.*)$/', 'q_key' => 'q');
+        'request_key' => 'q', 'response_key' => 'id',
+        'reply_re' => '/(^|\s)(@)(\w+)([\:]?)/', 'reply_link' => '$0', 'reply_link_re' => null,
+        'response_re' => '/(^|\s)(>>)(\w+)([\:]?)/u', 'response_link' => '$0', 'response_link_re' => null,
+        'hashtag_re' => '/(^|\s)#([^\s\<#]*)/'
+    );
     if (!\is_null($arg_g_opt)){
         if (\is_array($arg_g_opt)) {
             $g_opt = array_merge($g_opt, $arg_g_opt);
@@ -610,8 +635,10 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             $g_opt['arr_text'] = $arg_g_opt;
         }
     }
-    $key_q = get_val($g_opt, 'key_q', null);
-    $request_q = get_val($g_opt, 'q', get_val($_REQUEST, $key_q, ''));
+    $g_opt['request_key'] = get_val($g_opt, 'request_key', 'q');
+    $request_key = $g_opt['request_key'];
+    
+    $request_q = get_val($g_opt, 'q', get_val($_REQUEST, $request_key, ''));
     $highlight_q = "$request_q " . get_val($g_opt, 'highlight_q', '');
     $highlight_q = preg_replace('/[.+*?(){}\^$|\[\]\\\\]/', '', preg_replace('/^\s+|\s+$|(\s)\s*/', '$1', $highlight_q));
     $out_html_list = array();
@@ -621,10 +648,10 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     $_hq = !empty($highlight_q);
     $_hq_str = $_hq ? $highlight_q : '';
     $_q_str_l = (preg_match('/^\s*$/', $_hq_str) ? array() : explode(' ', $_hq_str));
+    $_q_str_l = array_unique($_q_str_l);
     $_q_str_l_f = array_flip($_q_str_l);
     $_q_str_e = urlencode($_q_str);
-    $_q_key = $g_opt['q_key'];
-    $_q_join = "?$_q_key=" . ($_q ? $_q_str_e.'+' : '');
+    $_q_join = "?$request_key=" . ($_q ? $_q_str_e.'+' : '');
     $_q_str_l_s = array();
     $_q_str_l_u = array();
     $data_origin = '';
@@ -642,26 +669,35 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         $_q_str_l_s[] = tagesc_re($value);
         $_q_str_l_u[] = urlencode($value);
     }
-    $callback_search = function($m, $text) use ($_hq, $_q_str_l_s, $_q_key, &$g_opt) {
-        $callback_1 = function($m) {
+
+    $callback_search = function($m, $text) use (&$_hq, &$_q_str_l_s, &$request_key, &$g_opt) {
+        $callback_1 = function($m) use (&$request_key) {
             $text = $m[0];
             $m2_1 = substr($m[2], 0, 1);
-            if ($m2_1 !== '#') {
-                switch ($m[2]) {
-                    case 'AND': case 'OR': case 'NOT': case '-':
-                    break;
-                    default:
-                        $text = $m[1].'<span class="highlight">'.$m[2].'</span>';
-                    break;
-                }
-            } else {
-                $inner = substr($m[2], 1);
-                return $m[1].'<a class="tag" href="?'.$_q_key.'=%23'.$inner.'">['.$inner.']</a>'.$m[3];
+            $inner = substr($m[2], 1);
+            if ($inner === '') $m2_1 = '';
+            switch ($m2_1) {
+                case '#':
+                    return $m[1].'<a class="tag" href="?'.$request_key.'=%23'.$inner.'">['.$inner.']</a>'.$m[3];
+                case '@':
+                    $inner = substr($m[2], 1);
+                    return $m[1].'<a class="to" href="?'.$request_key.'=@'.$inner.'">[@'.$inner.']</a>'.$m[3];
+                break;
+                default:
+                    switch ($m[2]) {
+                        case 'AND': case 'OR': case 'NOT': case '-':
+                        break;
+                        default:
+                            $text = $m[1].'<span class="highlight">'.$m[2].'</span>';
+                        break;
+                    }
+                break;
             }
             return $text;
         };
         if ($_hq) foreach($_q_str_l_s as $key => $value) {
             $_q_str_s = $_q_str_l_s[$key];
+
             if (preg_match_all('/([^\<\>]*)(\\\\)?([\<\>]?)/',$text, $m3)) {
                 $text_m3 = '';
                 for ($m3_i = 0; $m3_i < count($m3[0]); ++$m3_i) {
@@ -1148,16 +1184,16 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         }, $text);
         return $text;
     };
-    $hashtag_re = '/(^|\s)#([^\s\<#]*)/';
+    $hashtag_re = get_val($g_opt, 'hashtag_re', '');
     $add_symbol = count($_q_str_l_f) !== 0;
-    $callback_tag = function($m, $text) use (&$hashtag_re, &$_q_join, &$_q_str_l_f, &$add_symbol, $_q_key) {
-        $text = preg_replace_callback($hashtag_re, function($m) use (&$_q_join, &$_q_str_l_f, &$add_symbol, $_q_key){
+    $callback_tag = function($m, $text) use (&$hashtag_re, &$_q_join, &$_q_str_l_f, &$add_symbol, $request_key) {
+        $text = preg_replace_callback($hashtag_re, function($m) use (&$_q_join, &$_q_str_l_f, &$add_symbol, $request_key){
             $tag = $m[2];
             $tag_hash = '#'.$m[2];
             $brackets_flag = isset($_q_str_l_f[$tag_hash]);
             $tag_value = ($add_symbol && $brackets_flag) ? "[$tag]" : $tag_hash;
             $tag = str_replace('+', '%2b', $tag);
-            $tag_href = "?$_q_key=%23$tag";
+            $tag_href = "?$request_key=%23$tag";
             $plus_href = "$_q_join%23$tag";
             $add_flag = $add_symbol && ($tag_href !== $plus_href) && !$brackets_flag && !isset($_q_str_l_f['-'.$tag_hash]);
             return $m[1].'<a class="tag" href="'.$tag_href.'">'.$tag_value.'</a>'
@@ -1165,17 +1201,37 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         }, $text);
         return $text;
     };
-    $reply_re = '/(^|\s)(@)(\w+)([\:]?)/';
+    $reply_re = get_val($g_opt, 'reply_re', '');
+    $g_opt['reply_link_re'] = get_val($g_opt, 'reply_link_re', "/^(\?)($request_key\=)(.*)$/");
     $callback_reply = function($m, $text) use (&$reply_re, &$g_opt) {
         $text = preg_replace_callback($reply_re, function($m) use (&$g_opt){
+            $reply_query = '?' . $g_opt['request_key'] . '=@';
             if (is_callable($g_opt['reply_link'])) {
-                $reply_link = preg_replace_callback($g_opt['reply_link_re'], $g_opt['reply_link'], '?id='.$m[3]);
+                $reply_link = preg_replace_callback($g_opt['reply_link_re'], $g_opt['reply_link'], $reply_query.$m[3]);
             } else {
-                $reply_link = preg_replace($g_opt['reply_link_re'], $g_opt['reply_link'], '?id='.$m[3]);
+                $reply_link = preg_replace($g_opt['reply_link_re'], $g_opt['reply_link'], $reply_query.$m[3]);
             }
-            $id_at = '@'.$m[3];
+            $to_str = $m[2].$m[3];
             $after = $m[4] == ':' ? '' : $m[4];
-            return $m[1].'<a class="reply" href="'.$reply_link.'">'.$id_at.'</a>'.$after;
+            return $m[1].'<a class="reply" href="'.$reply_link.'">'.$to_str.'</a>'.$after;
+        }, $text);
+        return $text;
+    };
+    $response_re = get_val($g_opt, 'response_re', '');
+    $g_opt['response_key'] = get_val($g_opt, 'response_key', 'id');
+    $response_key = $g_opt['response_key'];
+    $g_opt['response_link_re'] = get_val($g_opt, 'response_link_re', "/^(\?)($response_key\=)(.*)$/");
+    $callback_response = function($m, $text) use (&$response_re, &$g_opt) {
+        $text = preg_replace_callback($response_re, function($m) use (&$g_opt){
+            $response_query = '?' . $g_opt['response_key'] . '=';
+            if (is_callable($g_opt['response_link'])) {
+                $response_link = preg_replace_callback($g_opt['response_link_re'], $g_opt['response_link'], $response_query.$m[3]);
+            } else {
+                $response_link = preg_replace($g_opt['response_link_re'], $g_opt['response_link'], $response_query.$m[3]);
+            }
+            $to_str = '&gt;&gt;'.$m[3];
+            $after = $m[4] == ':' ? '' : $m[4];
+            return $m[1].'<a class="response" href="'.$response_link.'">'.$to_str.'</a>'.$after;
         }, $text);
         return $text;
     };
@@ -1198,6 +1254,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
 
     if (get_val($g_opt, 'cbf_tag', $cb_bitnot_htnurl)) $func_list[] = $callback_tag;
     if (get_val($g_opt, 'cbf_reply', $cb_bitnot_htnurl)) $func_list[] = $callback_reply;
+    if (get_val($g_opt, 'cbf_response', $cb_bitnot_htnurl)) $func_list[] = $callback_response;
     if (get_val($g_opt, 'cbf_search', $cb_bitnot_htnurl)) $func_list[] = $callback_search;
 
     if (get_val($g_opt, 'cb_after', null) !== null) $func_list[] = $g_opt['cb_after'];
