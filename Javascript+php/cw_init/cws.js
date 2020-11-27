@@ -161,14 +161,16 @@ if (cws.update) {
             return '';
         }
     }
-    cws.get.request = function(path, auto_type){
+    cws.get.request = function(path, decode_flag, auto_type){
         path = cws.check.nullvar(path, cws.v.href);
+        decode_flag = Boolean(cws.check.nullvar(decode_flag, true));
         auto_type = Boolean(cws.check.nullvar(auto_type, false));
         var rq = new Object();
         var query_str = decodeURI((path.replace(/^([^#]*)#.*$/,"$1") + "?").replace(/^.*?\?|.$/g, ""))
-            .replace(/\+/g, ' ').replace(/&/g, '\\\n\r\\').replace(/%(\w\w)/g, function(m, m1){
-                return String.fromCharCode(parseInt(m1, 16));
-            });
+            .replace(/\+/g, ' ').replace(/&/g, '\\\n\r\\');
+        if (decode_flag) query_str = query_str.replace(/%(\w\w)/g, function(m, m1){
+            return String.fromCharCode(parseInt(m1, 16));
+        });
         var spl = query_str.split('\\\n\r\\');
         var keys = Object.keys(spl);
         for (var i = 0; i < keys.length; i++) {
@@ -430,8 +432,8 @@ if (cws.update) {
         }
         return obj_a;
     }
-    cws.to.request_array = function(path, auto_type){
-        return cws.get.request(path, auto_type);
+    cws.to.request_array = function(path, decode_flag, auto_type){
+        return cws.get.request(path, decode_flag, auto_type);
     }
     cws.to.form_array = function(data, upload_match_class) {
         var obj = new Object();
