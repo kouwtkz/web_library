@@ -1172,7 +1172,6 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                         break;
                         case '+': // ol -> liタグ設定
                         case '-': // ul -> liタグ設定
-                            
                             $tag = 'li';
                             $li_loop = true;
                             $li_pos = count($oul_tag_list);
@@ -1315,7 +1314,8 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         if ($htmlspecialchars) $text = htmlspecialchars($text);
         if ($do_callback_hatena) {
             $br_esc = chr(27);
-            $text = preg_replace("/$br_esc([^+\-])/", "$br_esc\\\n$1", preg_replace('/([+\-].*)(\n|$)/', "$1$br_esc", $text));
+            // ul, liタグの改行はCSS側で調整する
+            $text = preg_replace('/([+\-].*)(\n|$)/', "$1$br_esc", $text);
         };
         $text = convert_to_br($text, $br_leaven);
         if ($do_callback_hatena) {
