@@ -1134,6 +1134,10 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 if (substr($m[1], -1) === ' ') $m[1] = substr($m[1], 0, $space_len - 1);
             } else {
                 $strqty = get_strqty($m[2], false);
+                if ((isset($strqty['+']) || isset($strqty['-'])) && preg_match('/([+\-])[^+\-]*$/', $m[2], $m_plmi)) {
+                    $strqty[($m_plmi[1] === '+' ? '+' : '-')] = get_val($strqty, '+', 0) + get_val($strqty, '-', 0);
+                    unset($strqty[($m_plmi[1] === '+' ? '-' : '+')]);
+                }
                 foreach($strqty as $symbol_key => &$symbol_len) {
                     $tag = ''; $style = ''; $oul_tag = '';
                     $b_close = false; $open = true; $close = true;
@@ -1168,14 +1172,17 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                         break;
                         case '+': // ol -> liタグ設定
                         case '-': // ul -> liタグ設定
+                            
                             $tag = 'li';
                             $li_loop = true;
                             $li_pos = count($oul_tag_list);
                             $li_push_tag = (($symbol_key === '+') ? 'ol' : 'ul');
-                            $li_pop_flag = ($li_pos > $symbol_len)
-                                || ($li_pos === $symbol_len && $li_push_tag !== $oul_tag_list[$li_pos - 1]);
-                            if ($li_pop_flag) {
-                                for ($li_i = $symbol_len; $li_i <= $li_pos; $li_i++) {
+                            $pop_limit = $li_pos - $symbol_len;
+                            if ($pop_limit >= 0 && $li_push_tag !== $oul_tag_list[$symbol_len - 1]) {
+                                $pop_limit++;
+                            }
+                            if ($pop_limit > 0) {
+                                for ($li_i = 0; $li_i < $pop_limit; $li_i++) {
                                     $li_pop_tag = array_pop($oul_tag_list);
                                     $oul_tag .= '</'.$li_pop_tag.'>';
                                 }
@@ -1312,7 +1319,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         };
         $text = convert_to_br($text, $br_leaven);
         if ($do_callback_hatena) {
-            $text = str_replace($br_esc, "\n", $text);
+            $text = str_replace($br_esc, "\n", preg_replace("/$br_esc$/", "\n\\\n", $text));
         };
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         if ($align_mode !== '') { $text .= '</div>'; $align_mode = ''; }
