@@ -1306,8 +1306,14 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         $text = get_val($var, $g_opt['arr_before_text'], '') . get_val($var, $g_opt['arr_text'], '') . get_val($var, $g_opt['arr_after_text'], '');
         $text = convert_to_href_decode($text);
         if ($htmlspecialchars) $text = htmlspecialchars($text);
+        if ($do_callback_hatena) {
+            $br_esc = chr(27);
+            $text = preg_replace("/$br_esc([^+\-])/", "$br_esc\\\n$1", preg_replace('/([+\-].*)(\n|$)/', "$1$br_esc", $text));
+        };
         $text = convert_to_br($text, $br_leaven);
-        if ($do_callback_hatena) $text = "$text\n\\";
+        if ($do_callback_hatena) {
+            $text = str_replace($br_esc, "\n", $text);
+        };
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         if ($align_mode !== '') { $text .= '</div>'; $align_mode = ''; }
         $text = escape_to_br($text);
