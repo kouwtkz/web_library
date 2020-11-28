@@ -368,8 +368,9 @@ function set_autotag(...$data_list){
     $local_set($data_list, $default_opt);
     return $out_list;
 }
-function convert_to_br(string $str){
-    return preg_replace('/(\r\n|\r|\n)/', '<br/>', $str);
+function convert_to_br(string $str, bool $leaven = false){
+    $br = '<br/>' . ($leaven ? "\n" : '');
+    return preg_replace('/(\r\n|\r|\n)/', $br, $str);
 }
 function escape_to_br(string $str){
     return preg_replace_callback('/(\\\\?)(\<br\/\>|$)/', function($m) {
@@ -620,10 +621,10 @@ function __tagesc_callback($search_re, $text, $loop_func = null, $permission = a
 // デフォルトでは結果として生成されたHTMLを出力する
 // set_autolink($arr, 'text', $_REQUEST['q']);
 function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
-    global $callback_tagesc, $cws;
+    global $cws;
     $g_opt = array('arr_text' => 'text', 'arr_after_text' => 'after_text', 'arr_before_text' => 'before_text',
         'arr_htmlsp' => array('htmlsp', 'htmlspecialchars'), 'htmlsp' => true, 'autoplay' => false,
-        'request_key' => 'q', 'response_key' => 'id',
+        'request_key' => 'q', 'response_key' => 'id', 'br_leaven' => false,
         'reply_re' => '/(^|\s)(@)(\w+)([\:]?)/', 'reply_link' => '$0', 'reply_link_re' => null,
         'response_re' => '/(^|\s)(>>)(\w+)([\:]?)/u', 'response_link' => '$0', 'response_link_re' => null,
         'hashtag_re' => '/(^|\s)#([^\s\<#]*)/'
@@ -880,14 +881,15 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         }, $text);
         return $text;
     };
+    $oul_tag_list = array();
     $callback_hatena = function($m, $text, $linkable = false)
      use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class,
-            &$style, &$internal, &$callback_url, &$align_mode, &$opt) {
+            &$style, &$internal, &$callback_url, &$align_mode, &$oul_tag_list, &$opt) {
         if ($linkable) {
             return $m[0];
         }
         $hatena_func = function($get_str)
-        use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, &$callback_url, &$opt) {
+        use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, &$callback_url, &$oul_tag_list, &$opt) {
             $set_link_flag = true;
             $add_tag_list = array();
             $data_origin = "[$get_str]";
@@ -1119,8 +1121,9 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             return $text;
         };
         $text = brackets_loop($text, $hatena_func);
-        $heading_re = '/^(\s*)([*%\\\\]+)(.*)$/m';
-        $text = preg_replace_callback($heading_re, function($m) use (&$align_mode) {
+        $li_loop = false;
+        $heading_re = '/^(\s*)([*%+\-\\\\]+)(.*)$/m';
+        $text = preg_replace_callback($heading_re, function($m) use (&$align_mode, &$oul_tag_list, &$li_loop) {
             $space_len = strlen($m[1]);
             $retval = $m[3]; $tail = '';
             if (preg_match('/^(.*)([\\\\\s]+)$/', $retval, $m2)) {
@@ -1132,7 +1135,8 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             } else {
                 $strqty = get_strqty($m[2], false);
                 foreach($strqty as $symbol_key => &$symbol_len) {
-                    $tag = ''; $style = ''; $b_close = false; $open = true; $close = true;
+                    $tag = ''; $style = ''; $oul_tag = '';
+                    $b_close = false; $open = true; $close = true;
                     switch ($symbol_key) {
                         case '*':
                             switch ($symbol_len % 3) {
@@ -1162,6 +1166,29 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                                 }
                             }
                         break;
+                        case '+': // ol -> liタグ設定
+                        case '-': // ul -> liタグ設定
+                            $tag = 'li';
+                            $li_loop = true;
+                            $li_pos = count($oul_tag_list);
+                            $li_push_tag = (($symbol_key === '+') ? 'ol' : 'ul');
+                            $li_pop_flag = ($li_pos > $symbol_len)
+                                || ($li_pos === $symbol_len && $li_push_tag !== $oul_tag_list[$li_pos - 1]);
+                            if ($li_pop_flag) {
+                                for ($li_i = $symbol_len; $li_i <= $li_pos; $li_i++) {
+                                    $li_pop_tag = array_pop($oul_tag_list);
+                                    $oul_tag .= '</'.$li_pop_tag.'>';
+                                }
+                                $li_pos = count($oul_tag_list);
+                            }
+                            if ($li_pos < $symbol_len) {
+                                for ($li_i = $li_pos; $li_i < $symbol_len; $li_i++) {
+                                    array_push($oul_tag_list, $li_push_tag);
+                                    $oul_tag .= '<'.$li_push_tag.'>';
+                                }
+                            }
+                            $li_pos = $symbol_len;
+                        break;
                         case '\\':
                             $tag = ''; $mnb_tag = true;
                         break;
@@ -1170,7 +1197,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     $tmp_tag = $tag !== '';
                     $mnb_tag |= $tmp_tag;
                     if ($tag !== '') {
-                        $retval = ($b_close ? "</$tag>" : '')
+                        $retval = $oul_tag . ($b_close ? "</$tag>" : '')
                             . ($open ? "<$tag$style>" : '') . $retval . ($close ? "</$tag>" : '');
                     }
                 }
@@ -1182,6 +1209,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 return $m[1].$m[2].$retval;
             }
         }, $text);
+        if (!$li_loop) {
+            $li_pos = count($oul_tag_list);
+            for ($li_i = 0; $li_i < $li_pos; $li_i++) {
+                $li_pop_tag = array_pop($oul_tag_list);
+                $text = '</'.$li_pop_tag.'>' . $text;
+            }
+        }
         return $text;
     };
     $hashtag_re = get_val($g_opt, 'hashtag_re', '');
@@ -1247,7 +1281,8 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     $cb_bitnot_htnurl = true && !$cb_bitnot_hatena && !$cb_bitnot_url;
 
     $cb_bit_default_hatena = true && !$cb_bitnot_url;
-    if (get_val($g_opt, 'cbf_hatena', $cb_bit_default_hatena)) $func_list[] = $callback_hatena;
+    $do_callback_hatena = get_val($g_opt, 'cbf_hatena', $cb_bit_default_hatena);
+    if ($do_callback_hatena) $func_list[] = $callback_hatena;
 
     $cb_bit_default_url = true && !$cb_bitnot_hatena;
     if (get_val($g_opt, 'cbf_url', $cb_bit_default_url)) $func_list[] = $callback_url;
@@ -1264,13 +1299,15 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     if (!\is_array($arr)) $arr = array($g_opt['arr_text'] => $arr);
 
     $g_arr_htmlsp = get_val($g_opt, 'arr_htmlsp', '');
+    $br_leaven = get_val($g_opt, 'br_leaven', false);
     $g_htmlspecialchars = get_val($g_opt, $g_arr_htmlsp, true);
     foreach($arr as $var) {
         $htmlspecialchars = $g_htmlspecialchars && get_val($var, $g_arr_htmlsp, true);
         $text = get_val($var, $g_opt['arr_before_text'], '') . get_val($var, $g_opt['arr_text'], '') . get_val($var, $g_opt['arr_after_text'], '');
         $text = convert_to_href_decode($text);
         if ($htmlspecialchars) $text = htmlspecialchars($text);
-        $text = convert_to_br($text);
+        $text = convert_to_br($text, $br_leaven);
+        if ($do_callback_hatena) $text = "$text\n\\";
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         if ($align_mode !== '') { $text .= '</div>'; $align_mode = ''; }
         $text = escape_to_br($text);
