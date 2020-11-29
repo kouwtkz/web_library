@@ -882,13 +882,14 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         return $text;
     };
     $oul_tag_list = array();
-    $callback_hatena = function($m, $text, $linkable = false)
+    // 独自記法です、一部だけはてな記法そのものになってます
+    $callback_cwrule = function($m, $text, $linkable = false)
      use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class,
             &$style, &$internal, &$callback_url, &$align_mode, &$oul_tag_list, &$opt) {
         if ($linkable) {
             return $m[0];
         }
-        $hatena_func = function($get_str)
+        $cwrule_func = function($get_str)
         use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class, &$style, &$callback_url, &$oul_tag_list, &$opt) {
             $set_link_flag = true;
             $add_tag_list = array();
@@ -1120,7 +1121,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             }
             return $text;
         };
-        $text = brackets_loop($text, $hatena_func);
+        $text = brackets_loop($text, $cwrule_func);
         $li_loop = false;
         $heading_re = '/^(\s*)([*%+\-\\\\]+)(.*)$/m';
         $text = preg_replace_callback($heading_re, function($m) use (&$align_mode, &$oul_tag_list, &$li_loop) {
@@ -1139,7 +1140,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     unset($strqty[($m_plmi[1] === '+' ? '-' : '+')]);
                 }
                 foreach($strqty as $symbol_key => &$symbol_len) {
-                    $tag = ''; $style = ''; $oul_tag = '';
+                    $tag = ''; $style = ''; $class = ''; $oul_tag = '';
                     $b_close = false; $open = true; $close = true;
                     switch ($symbol_key) {
                         case '*':
@@ -1204,7 +1205,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     $mnb_tag |= $tmp_tag;
                     if ($tag !== '') {
                         $retval = $oul_tag . ($b_close ? "</$tag>" : '')
-                            . ($open ? "<$tag$style>" : '') . $retval . ($close ? "</$tag>" : '');
+                            . ($open ? "<$tag$style$class>" : '') . $retval . ($close ? "</$tag>" : '');
                     }
                 }
             }
@@ -1282,15 +1283,15 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     // function($m, $text)という形式にすること
     if (get_val($g_opt, 'cb_before', null) !== null) $func_list[] = $g_opt['cb_before']; 
     
-    $cb_bitnot_hatena = get_val($g_opt, 'cbn_hatena', false);
+    $cb_bitnot_cwrule = get_val($g_opt, 'cbn_cwrule', false);
     $cb_bitnot_url = get_val($g_opt, 'cbn_url', false);
-    $cb_bitnot_htnurl = true && !$cb_bitnot_hatena && !$cb_bitnot_url;
+    $cb_bitnot_htnurl = true && !$cb_bitnot_cwrule && !$cb_bitnot_url;
 
-    $cb_bit_default_hatena = true && !$cb_bitnot_url;
-    $do_callback_hatena = get_val($g_opt, 'cbf_hatena', $cb_bit_default_hatena);
-    if ($do_callback_hatena) $func_list[] = $callback_hatena;
+    $cb_bit_default_cwrule = true && !$cb_bitnot_url;
+    $do_callback_cwrule = get_val($g_opt, 'cbf_cwrule', $cb_bit_default_cwrule);
+    if ($do_callback_cwrule) $func_list[] = $callback_cwrule;
 
-    $cb_bit_default_url = true && !$cb_bitnot_hatena;
+    $cb_bit_default_url = true && !$cb_bitnot_cwrule;
     if (get_val($g_opt, 'cbf_url', $cb_bit_default_url)) $func_list[] = $callback_url;
 
     if (get_val($g_opt, 'cbf_tag', $cb_bitnot_htnurl)) $func_list[] = $callback_tag;
@@ -1312,13 +1313,26 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         $text = get_val($var, $g_opt['arr_before_text'], '') . get_val($var, $g_opt['arr_text'], '') . get_val($var, $g_opt['arr_after_text'], '');
         $text = convert_to_href_decode($text);
         if ($htmlspecialchars) $text = htmlspecialchars($text);
-        if ($do_callback_hatena) {
+        if ($do_callback_cwrule) {
             $br_esc = chr(27);
             // ul, liタグの改行はCSS側で調整する
-            $text = preg_replace('/([+\-].*)(\n|$)/', "$1$br_esc", $text);
+            for ($i_rep = 0; $i_rep < 2; $i_rep++) {
+                $text = preg_replace_callback('/(^|\n)([+\-].*|>>|<<)(\n|$)/', function($m)
+                use (&$br_esc) {
+                    switch ($m[2]) {
+                        case '>>':
+                            $m[2] = '<blockquote>';
+                        break;
+                        case '<<':
+                            $m[2] = '</blockquote>';
+                        break;
+                    }
+                    return $m[1].$m[2].$br_esc;
+                }, $text);
+            }
         };
         $text = convert_to_br($text, $br_leaven);
-        if ($do_callback_hatena) {
+        if ($do_callback_cwrule) {
             $text = str_replace($br_esc, "\n", preg_replace("/$br_esc$/", "\n\\\n", $text));
         };
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
