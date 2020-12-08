@@ -371,13 +371,6 @@ function date_until($date = null){
         $date = strtotime(get_val($date, datetostr_default()));
     return strtotime(date("Y-m-d", $date)."+1 day -1 second");
 }
-function auto_mkdir($dir) {
-    $dir_s = '';
-    foreach (explode('/', $dir) as $s) {
-        $dir_s .= $s.'/';
-        if (!file_exists($dir_s)) mkdir($dir_s);
-    }
-}
 function auto_uripath($doc_path = null, $request_uri = null, $out_dir = false) {
     if (!is_null($doc_path)) {
         switch(gettype($doc_path)) {

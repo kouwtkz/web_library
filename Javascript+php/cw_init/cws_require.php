@@ -9,12 +9,46 @@ $cws_load['require'] = false;
 
 if(!isset($cws_doc)) $cws_doc = $_SERVER['DOCUMENT_ROOT'];
 
-function path_auto_doc(string $path = ''){
+function extr_dir($dir) {
+    return preg_replace('/\/[^\/]*\.[^\/]*$/', '', $dir);
+}
+
+function auto_mkdir($dir) {
+    $dir_s = '';
+    $dir = extr_dir($dir);
+    foreach (explode('/', $dir) as $s) {
+        $dir_s .= $s.'/';
+        if (!file_exists($dir_s)) mkdir($dir_s);
+    }
+}
+function auto_rmdir($dir, $command = true) {
+    $dir = get_docpath(get_dir($dir));
+    if (!is_dir($dir)) return;
+    $php_os = $command ? PHP_OS : '';
+    switch ($php_os) {
+        case 'Linux':
+            exec("rm -r $dir");
+        break;
+        default:
+            $files = array_diff(scandir($dir), array('.','..'));
+            foreach ($files as $file) {
+                if (is_dir("$dir/$file")) {
+                    auto_rmdir("$dir/$file", false);
+                } else {
+                    unlink("$dir/$file");
+                }
+            }
+            return rmdir($dir);
+        break;
+    }
+}
+function path_auto_doc(string $path = '', $auto_make = true){
     global $cws_doc;
     $doc = $cws_doc;
     if (strpos($path, '/') === 0) {
         $path = $doc.$path;
     }
+    if ($auto_make) { auto_mkdir($path); }
     return $path;
 }
 // 存在しない場合は標準の場合はnullを返す
@@ -43,8 +77,8 @@ function get_path(string $path = '', bool $return_blank = true) {
     }
 }
 // /から始まる相対パスを変換、存在しないときもファイルパスとして出力する）
-function get_docpath(string $path = '', bool $return_blank = false) {
-    $path = path_auto_doc($path);
+function get_docpath(string $path = '', bool $return_blank = false, bool $auto_make = false) {
+    $path = path_auto_doc($path, $auto_make);
     if ($path !== '' && file_exists($path)) {
         return $path;
     } else {
