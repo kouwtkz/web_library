@@ -1317,7 +1317,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             $br_esc = chr(27);
             // ul, liタグの改行はCSS側で調整する
             for ($i_rep = 0; $i_rep < 2; $i_rep++) {
-                $text = preg_replace_callback('/(^|\n)([+\-].*|>>|<<)(\n|$)/', function($m)
+                $text = preg_replace_callback('/(^|\n)([+\-][^\n]*|>>|<<)(\n|$)/m', function($m)
                 use (&$br_esc) {
                     switch ($m[2]) {
                         case '>>':
