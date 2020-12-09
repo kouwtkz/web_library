@@ -536,7 +536,8 @@ if (cws.update) {
     cws.to.form_append = function(request, formdata_obj, merge_mode){
         request = cws.check.nullvar(request, new Object());
         formdata_obj = cws.check.nullvar(formdata_obj, new FormData());
-        merge_mode = cws.check.nullvar(merge_mode, true);
+        merge_mode = typeof(formdata_obj.has) === 'undefined'
+            ? false : cws.check.nullvar(merge_mode, false);
         keys = Object.keys(request);
         for (var i = 0; i < keys.length; i++) {
             var key = keys[i];
