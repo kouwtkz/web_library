@@ -1315,11 +1315,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         if ($htmlspecialchars) $text = htmlspecialchars($text);
         if ($do_callback_cwrule) {
             $br_esc = chr(27);
+            $s_out = chr(14);
+            $s_in = chr(15);
             $comment_out = false;
             // ul, liタグの改行はCSS側で調整する
             for ($i_rep = 0; $i_rep < 2; $i_rep++) {
                 $text = preg_replace_callback('/(^|\n)([+\-][^\n]*|>>|<<|\*\/|\/\*)(\n|$)/m', function($m)
-                use (&$br_esc, &$comment_out) {
+                use (&$br_esc, &$s_out, &$s_in, &$comment_out) {
                     switch ($m[2]) {
                         case '>>':
                             $m[2] = '<blockquote>';
@@ -1328,11 +1330,11 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                             $m[2] = '</blockquote>';
                         break;
                         case '/*':
-                            $m[2] = '<!-- ';
+                            $m[2] = $s_out;
                             $comment_out = true;
                         break;
                         case '*/':
-                            $m[2] = ' -->';
+                            $m[2] = $s_in;
                             $comment_out = false;
                         break;
                     }
@@ -1344,9 +1346,11 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 }, $text);
             }
             if ($comment_out) {
-                $text .= ' -->';
+                $text .= $s_in;
                 $comment_out = false;
             }
+            $not_s_in = "[^$s_in]";
+            $text = preg_replace("/$s_out$not_s_in*$s_in/m", '', $text);
         };
         $text = convert_to_br($text, $br_leaven);
         if ($do_callback_cwrule) {
