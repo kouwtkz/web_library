@@ -1336,7 +1336,11 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                             $comment_out = false;
                         break;
                     }
-                    return $m[1].$m[2].$br_esc;
+                    if (mb_substr($m[2], -1) === $br_esc) {
+                        return $m[1].$m[2].$m[3];
+                    } else {
+                        return $m[1].$m[2].$br_esc;
+                    }
                 }, $text);
             }
             if ($comment_out) {
