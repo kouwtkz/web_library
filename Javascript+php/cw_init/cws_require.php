@@ -45,7 +45,7 @@ function auto_rmdir($dir, $command = true) {
 function path_auto_doc(string $path = '', $auto_make = true){
     global $cws_doc;
     $doc = $cws_doc;
-    if (strpos($path, '/') === 0) {
+    if (strpos($path, '/') === 0 && strpos($path, $doc) !== 0) {
         $path = $doc.$path;
     }
     if ($auto_make) { auto_mkdir($path); }
