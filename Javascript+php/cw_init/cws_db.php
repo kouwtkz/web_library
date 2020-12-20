@@ -674,13 +674,33 @@ class DB{
         }
         return array($return_type, $return_str, $return_collate);
     }
-    static function create($dbi = null){
-        if (is_null($dbi)) $dbi = new DBI();
-        return new self($dbi);
+    static function create(...$param){
+        return new self($param);
     }
-    function __construct($dbi = null){
-        if (is_null($dbi)) $dbi = new DBI();
+    function __construct(...$param){
+        $dbi = null;
+        $dbi_param = array();
+        $this->construct_loop($param, $dbi, $dbi_param);
+        if (is_null($dbi)) $dbi = new DBI($dbi_param);
         $this->session_connect($dbi);
+    }
+    private function construct_loop(&$param, &$dbi, &$dbi_param) {
+        foreach ($param as $value) {
+            switch (gettype($value)) {
+                case 'array':
+                    if (isset($value[0])) {
+                        $this->construct_loop($value, $dbi, $dbi_param);
+                    } else {
+                        $dbi_param = array_merge($dbi_param, $value);
+                    }
+                break;
+                case 'object':
+                    if (is_a($value, 'cws\DBI')) {
+                        $dbi = $value;
+                    }
+                break;
+            }
+        }
     }
     function __destruct() {
         $this->disconnect();
