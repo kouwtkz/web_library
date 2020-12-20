@@ -125,7 +125,7 @@ class DBI{
                 break;
                 case 'array':
                     if (isset($value[0])) {
-                        $this->construct_loop($param, $global_enable, $local_db_obj, $changeable_db);
+                        $this->construct_loop($value, $global_enable, $local_db_obj, $changeable_db);
                     } else {
                         $local_db_obj = array_merge($local_db_obj, $value);
                         $changeable_db = false;
