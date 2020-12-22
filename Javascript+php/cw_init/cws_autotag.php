@@ -1131,12 +1131,12 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             if (preg_match('/^(.*)([\\\\\s]+)$/', $retval, $m2)) {
                 $retval = $m2[1]; $tail = $m2[2];
             }
+            $retarr = array('', $retval, '');
             $mnb_tag = 0;
             if (strlen($m[1]) > 0) {
                 if (substr($m[1], -1) === ' ') $m[1] = substr($m[1], 0, $space_len - 1);
             } else {
                 $strqty = get_strqty($m[2], false);
-                $retarr = array('', $retval, '');
                 if ((isset($strqty['+']) || isset($strqty['-'])) && preg_match('/([+\-])[^+\-]*$/', $m[2], $m_plmi)) {
                     $strqty[($m_plmi[1] === '+' ? '+' : '-')] = get_val($strqty, '+', 0) + get_val($strqty, '-', 0);
                     unset($strqty[($m_plmi[1] === '+' ? '-' : '+')]);
