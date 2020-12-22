@@ -662,6 +662,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     $class = '';
     $style = '';
     $align_mode = '';
+    $heading_mode = '';
     $opt = array();
     $get_mult_opt = function($key, $default) use (&$opt, &$g_opt) {
         return get_val(get_mult($key, $g_opt, $opt), $default);
@@ -885,7 +886,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     // 独自記法です、一部だけはてな記法そのものになってます
     $callback_cwrule = function($m, $text, $linkable = false)
      use (&$class_reset, &$data_origin, &$set_link, &$title, &$type, &$target, &$class,
-            &$style, &$internal, &$callback_url, &$align_mode, &$oul_tag_list, &$opt) {
+            &$style, &$internal, &$callback_url, &$align_mode, &$heading_mode, &$oul_tag_list, &$opt) {
         if ($linkable) {
             return $m[0];
         }
@@ -1124,7 +1125,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         $text = brackets_loop($text, $cwrule_func);
         $li_loop = false;
         $heading_re = '/^(\s*)([*%+\-\\\\]+)(.*)$/m';
-        $text = preg_replace_callback($heading_re, function($m) use (&$align_mode, &$oul_tag_list, &$li_loop) {
+        $text = preg_replace_callback($heading_re, function($m) use (&$align_mode, &$heading_mode, &$oul_tag_list, &$li_loop) {
             $space_len = strlen($m[1]);
             $retval = $m[3]; $tail = '';
             if (preg_match('/^(.*)([\\\\\s]+)$/', $retval, $m2)) {
@@ -1135,6 +1136,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                 if (substr($m[1], -1) === ' ') $m[1] = substr($m[1], 0, $space_len - 1);
             } else {
                 $strqty = get_strqty($m[2], false);
+                $retarr = array('', $retval, '');
                 if ((isset($strqty['+']) || isset($strqty['-'])) && preg_match('/([+\-])[^+\-]*$/', $m[2], $m_plmi)) {
                     $strqty[($m_plmi[1] === '+' ? '+' : '-')] = get_val($strqty, '+', 0) + get_val($strqty, '-', 0);
                     unset($strqty[($m_plmi[1] === '+' ? '-' : '+')]);
@@ -1148,6 +1150,18 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                                 case 1: $tag = 'h3'; break;
                                 case 2: $tag = 'h4'; break;
                                 case 0: $tag = 'h5'; break;
+                            }
+                            if ($symbol_len >= 4) {
+                                $b_close = ($heading_mode !== '');
+                                $open = ($tag !== $heading_mode);
+                                $close = !($b_close || $open);
+                                if ($open && !$close) {
+                                    $style = 'display: block;';
+                                    $heading_mode = $tag;
+                                    if ($retarr[1] === '' && $tail === '') $tail  = '\\';
+                                } else {
+                                    $heading_mode = '';
+                                }
                             }
                         break;
                         case '%':
@@ -1165,7 +1179,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                                 $close = !($b_close || $open);
                                 if ($open && !$close) {
                                     $align_mode = $align_str;
-                                    if ($retval === '' && $tail === '') $tail  = '\\';
+                                    if ($retarr[1] === '' && $tail === '') $tail  = '\\';
                                 } else {
                                     $align_mode = '';
                                 }
@@ -1204,12 +1218,12 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     $tmp_tag = $tag !== '';
                     $mnb_tag |= $tmp_tag;
                     if ($tag !== '') {
-                        $retval = $oul_tag . ($b_close ? "</$tag>" : '')
-                            . ($open ? "<$tag$style$class>" : '') . $retval . ($close ? "</$tag>" : '');
+                        $retarr[0] = $retarr[0] . $oul_tag . ($b_close ? "</$tag>" : '') . ($open ? "<$tag$style$class>" : '');
+                        $retarr[2] = ($close ? "</$tag>" : '') . $retarr[2];
                     }
                 }
             }
-            $retval = $retval.$tail;
+            $retval = implode('', $retarr).$tail;
             if ($mnb_tag) {
                 return $retval;
             } else {
@@ -1358,6 +1372,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         };
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         if ($align_mode !== '') { $text .= '</div>'; $align_mode = ''; }
+        if ($heading_mode !== '') { $text .= "</$heading_mode>"; $heading_mode = ''; }
         $text = escape_to_br($text);
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $loop_func($text, $var);
