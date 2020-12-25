@@ -1156,12 +1156,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                                 $open = ($tag !== $heading_mode);
                                 $close = !($b_close || $open);
                                 if ($open && !$close) {
-                                    $style = 'display: block;';
+                                    $class = " class='$tag'";
                                     $heading_mode = $tag;
                                     if ($retarr[1] === '' && $tail === '') $tail  = '\\';
                                 } else {
                                     $heading_mode = '';
                                 }
+                                $tag = 'div';
                             }
                         break;
                         case '%':
@@ -1372,7 +1373,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
         };
         $text = __tagesc_callback('/.*/', $text, $func_list, $permission);
         if ($align_mode !== '') { $text .= '</div>'; $align_mode = ''; }
-        if ($heading_mode !== '') { $text .= "</$heading_mode>"; $heading_mode = ''; }
+        if ($heading_mode !== '') { $text .= "</div>"; $heading_mode = ''; }
         $text = escape_to_br($text);
         $text = preg_replace('/^\s+|\s+$/', '', $text);
         $loop_func($text, $var);
