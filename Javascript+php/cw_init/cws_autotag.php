@@ -1323,6 +1323,9 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
     $g_arr_htmlsp = get_val($g_opt, 'arr_htmlsp', '');
     $br_leaven = get_val($g_opt, 'br_leaven', false);
     $g_htmlspecialchars = get_val($g_opt, $g_arr_htmlsp, true);
+    $key_more_read = get_val($g_opt, 'key_more_read', 'direct_index');
+    $func_more_read = get_val($g_opt, 'cbf_more_read', function(){return '…';});
+
     foreach($arr as $var) {
         $htmlspecialchars = $g_htmlspecialchars && get_val($var, $g_arr_htmlsp, true);
         $text = get_val($var, $g_opt['arr_before_text'], '') . get_val($var, $g_opt['arr_text'], '') . get_val($var, $g_opt['arr_after_text'], '');
@@ -1333,11 +1336,12 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             $s_out = chr(14);
             $s_in = chr(15);
             $comment_out = false;
+            $more_esc = chr(16);
             // ul, liタグの改行はCSS側で調整する
             for ($i_rep = 0; $i_rep < 2; $i_rep++) {
-                $text = preg_replace_callback('/(^|\n)([+\-][^\n]*|>>|<<|\*\/|\/\*)(\n|$)/m', function($m)
-                use (&$br_esc, &$s_out, &$s_in, &$comment_out) {
-                    switch ($m[2]) {
+                $text = preg_replace_callback('/(^|\n)([+\-][^\n]*|>>|<<|\*\/|\/\*|={4,})(\n|$)/m', function($m)
+                use (&$br_esc, &$s_out, &$s_in, &$comment_out, &$more_esc, &$key_more_read, &$func_more_read, &$var) {
+                    switch (substr($m[2], 0, 2)) {
                         case '>>':
                             $m[2] = '<blockquote>';
                         break;
@@ -1351,6 +1355,13 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                         case '*/':
                             $m[2] = $s_in;
                             $comment_out = false;
+                        break;
+                        case '==':  // 続きを読むを想定
+                            if (!(isset($var[$key_more_read]) && $var[$key_more_read])) {
+                                $m[2] = (is_callable($func_more_read) ? $func_more_read($m, $var) : '').$more_esc;
+                            } else {
+                                $m[2] = '';
+                            }
                         break;
                     }
                     if (mb_substr($m[2], -1) === $br_esc) {
@@ -1366,6 +1377,7 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
             }
             $not_s_in = "[^$s_in]";
             $text = preg_replace("/$s_out$not_s_in*$s_in/m", '', $text);
+            $text = preg_replace("/$more_esc.*$/s", '', $text);
         };
         $text = convert_to_br($text, $br_leaven);
         if ($do_callback_cwrule) {
