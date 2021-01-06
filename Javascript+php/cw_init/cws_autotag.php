@@ -909,6 +909,10 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                     $add_tag_list[] = $get_str;
                     $set_link_flag = false;
                 break;
+                case 'd': case 'del':
+                    $add_tag_list[] = 'del';
+                    $set_link_flag = false;
+                break;
                 case 's': case 'e': case 'span':
                     $add_tag_list[] = 'span';
                     $set_link_flag = false;
@@ -968,6 +972,9 @@ function set_autolink($arr = array(), $arg_g_opt = array(), $loop_func = null){
                             break;
                             case 'i': case 'b':
                                 $add_tag_list[] = $swm[1];
+                            break;
+                            case 'd': case 'del':
+                                $add_tag_list[] = 'del';
                             break;
                             case 's': case 'span':
                                 $add_tag_list[] = 'span';
