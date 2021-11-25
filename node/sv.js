@@ -24,10 +24,10 @@ var server = http
     .createServer(function (req, res) {
         var pathSplit = req.url.split("?");
         var pathName = pathSplit.shift();
-        var quaryStr = (pathSplit.length > 0) ? ("?" + pathSplit.join("?")) : "";
         var dirName = path.dirname(pathName);
         var pageName = path.basename(pathName);
         if (!pageName.match(/\./) && !pathName.match(/\/$/)) {
+            var quaryStr = (pathSplit.length > 0) ? ("?" + pathSplit.join("?")) : "";
             res.writeHead(302, {
                 Location: pathName + "/" + quaryStr,
             });
