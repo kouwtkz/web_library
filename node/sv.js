@@ -37,12 +37,10 @@ var server = http
 
         var m = pageName.match(/^([^\.]*)(.*)$/);
         if (m[2] === "") {
-            dirName = dirName.replace(/(\/?)$/, "$1/") + pageName;
+            dirName = dirName.replace(/\/?$/, "/") + pageName;
             pageName = "";
         }
-        if (dirName !== "/") {
-            dirName += "/";
-        }
+        dirName = dirName.replace(/\/?$/, "/");
         var filePath;
         if (pageName === "") {
             ["index.html", "index.htm", "index.php"].forEach((ix) => {
