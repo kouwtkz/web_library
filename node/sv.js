@@ -6,11 +6,11 @@ if (typeof server !== "undefined" || process.argv.length < 4) {
 var option = { DocumentRoot: process.argv[2], Port: Number(process.argv[3]) };
 
 var http = require("http");
-var url = require("url");
 var path = require("path");
 var fs = require("fs");
 var mime = {
     ".html": "text/html",
+    ".htm": "text/html",
     ".php": "text/html",
     ".css": "text/css",
     ".js": "application/javascript",
@@ -22,35 +22,69 @@ var mime = {
 
 var server = http
     .createServer(function (req, res) {
-        var pathps = url.parse(req.url);
-        var pathName = pathps.pathname;
+        var pathSplit = req.url.split("?");
+        var pathName = pathSplit.shift();
+        var quaryStr = (pathSplit.length > 0) ? ("?" + pathSplit.join("?")) : "";
         var dirName = path.dirname(pathName);
         var pageName = path.basename(pathName);
+        if (!pageName.match(/\./) && !pathName.match(/\/$/)) {
+            res.writeHead(302, {
+                Location: pathName + "/" + quaryStr,
+            });
+            res.end();
+            return;
+        }
+
         var m = pageName.match(/^([^\.]*)(.*)$/);
         if (m[2] === "") {
-            dirName += "/" + pageName;
-            pageName = "index.html";
+            dirName = dirName.replace(/(\/?)$/, "$1/") + pageName;
+            pageName = "";
         }
         if (dirName !== "/") {
             dirName += "/";
         }
-        var filePath = option.DocumentRoot + dirName + pageName;
-        filePath = filePath.replace(/\//g, "\\");
-        // console.log(filePath);
-        fs.readFile(filePath, function (err, data) {
-            if (err === null) {
-                var mime_str = mime[path.extname(filePath)] || "text/plain";
-                if (mime_str.match(/text||javascript/)) {
-                    mime_str += "; charset=utf-8";
+        var filePath;
+        if (pageName === "") {
+            ["index.html", "index.htm", "index.php"].forEach((ix) => {
+                if (pageName === "") {
+                    var tmpPath = option.DocumentRoot + dirName + ix;
+                    if (fs.existsSync(tmpPath)) pageName = ix;
                 }
-                res.writeHead(200, {
-                    "Content-Type": mime_str,
-                });
-                res.end(data);
-            } else {
-                err_func(err);
+            });
+        }
+        filePath = option.DocumentRoot + dirName + pageName;
+        if (pageName === "") {
+            var html = "";
+            var mime_str = "text/html; charset=utf-8";
+            res.writeHead(200, {
+                "Content-Type": mime_str,
+            });
+            if (fs.existsSync(filePath)) {
+                files = fs.readdirSync(filePath + ".");
+                if (files) {
+                    files.forEach((file) => {
+                        html +=
+                            '<a href="' + file + '">' + file + "</a>" + "\n";
+                    });
+                }
             }
-        });
+            res.end(html);
+        } else {
+            fs.readFile(filePath, function (err, data) {
+                if (err === null) {
+                    var mime_str = mime[path.extname(filePath)] || "text/plain";
+                    if (mime_str.match(/text||javascript/)) {
+                        mime_str += "; charset=utf-8";
+                    }
+                    res.writeHead(200, {
+                        "Content-Type": mime_str,
+                    });
+                    res.end(data);
+                } else {
+                    err_func(err);
+                }
+            });
+        }
         var err_func = function (err) {
             res.writeHead(200, { "Content-Type": "text/plain" });
             res.end(JSON.stringify(err));
