@@ -137,8 +137,12 @@ if (process.argv.length < 4) {
                                     ? ' "' + requests.join("&") + '"'
                                     : "";
                             var exec_str = exe + " " + filePath + request_str;
-                            var stdout = execSync(exec_str);
-                            res.end(stdout);
+                            try {
+                                var stdout = execSync(exec_str);
+                                res.end(stdout);
+                            } catch (error) {
+                                err_func(error);
+                            }
                         };
                         if (req.method === "POST") {
                             var post_data = "";
