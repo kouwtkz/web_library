@@ -30,6 +30,15 @@ if (process.argv.length < 4) {
 
     var server = http
         .createServer((req, res) => {
+            var err_func = function (err) {
+                if (err.code === "ENOENT") {
+                    res.writeHead(404, { "Content-Type": "text/plain" });
+                    res.end("404 not found");
+                } else {
+                    res.writeHead(200, { "Content-Type": "text/plain" });
+                    res.end(JSON.stringify(err));
+                }
+            };
             var pathSplit = req.url.split("?");
             var pathName = pathSplit.shift();
             var dirName = path.dirname(pathName);
@@ -63,10 +72,10 @@ if (process.argv.length < 4) {
             if (pageName === "") {
                 var html = "";
                 var mime_str = "text/html; charset=utf-8";
-                res.writeHead(200, {
-                    "Content-Type": mime_str,
-                });
                 if (fs.existsSync(filePath)) {
+                    res.writeHead(200, {
+                        "Content-Type": mime_str,
+                    });
                     files = fs.readdirSync(filePath + ".");
                     if (files) {
                         files.forEach((file) => {
@@ -79,6 +88,8 @@ if (process.argv.length < 4) {
                                 "\n";
                         });
                     }
+                } else {
+                    err_func({ code: "ENOENT" });
                 }
                 res.end(html);
             } else {
@@ -113,10 +124,6 @@ if (process.argv.length < 4) {
                     }
                 });
             }
-            var err_func = function (err) {
-                res.writeHead(200, { "Content-Type": "text/plain" });
-                res.end(JSON.stringify(err));
-            };
         })
         .listen(option.Port);
     console.log(server);
