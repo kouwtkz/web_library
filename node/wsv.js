@@ -27,6 +27,14 @@ if (process.argv.length < 4) {
         ".gif": "image/gif",
         ".txt": "text/plain",
     };
+    var index_list = [
+        "index.html",
+        "index.htm",
+        "index.cgi",
+        "index.pl",
+        "index.php",
+    ];
+    var cgi_bin_re = /^\/cgi-bin\//;
 
     var server = http
         .createServer((req, res) => {
@@ -61,10 +69,13 @@ if (process.argv.length < 4) {
             dirName = dirName.replace(/\/?$/, "/");
             var filePath;
             if (pageName === "") {
-                ["index.html", "index.htm", "index.php"].forEach((ix) => {
+                index_list.some((ix) => {
                     if (pageName === "") {
                         var tmpPath = option.DocumentRoot + dirName + ix;
-                        if (fs.existsSync(tmpPath)) pageName = ix;
+                        if (fs.existsSync(tmpPath)) {
+                            pageName = ix;
+                            return true;
+                        }
                     }
                 });
             }
@@ -93,8 +104,56 @@ if (process.argv.length < 4) {
                 }
                 res.end(html);
             } else {
+                var ext = path.extname(filePath);
+                var exe = "";
+                var exe_force = false;
+                var exe_arg = "";
+                switch (ext) {
+                    case ".pl":
+                        exe = "/usr/bin/perl";
+                        break;
+                    case ".cgi":
+                        data = fs.readFileSync(filePath);
+                        var m = data.toString().match(/^#!([\S]+)/);
+                        if (m) exe = m[1];
+                        break;
+                    case ".js":
+                        if (dirName.match(cgi_bin_re)) {
+                            exe_force = true;
+                            exe = "node";
+                        }
+                        break;
+                }
+                if (exe !== "" && (exe_force || fs.existsSync(exe))) {
+                    var requests;
+                    if (pathSplit.length > 0) {
+                        requests = pathSplit.join("?").split("&");
+                    } else {
+                        requests = [];
+                    }
+                    var run = () => {
+                        var request_str =
+                            requests.length > 0
+                                ? ' "' + requests.join("&") + '"'
+                                : "";
+                        var exec_str = exe + " " + filePath + request_str;
+                        var stdout = execSync(exec_str);
+                        res.end(stdout);
+                    };
+                    if (req.method === "POST") {
+                        var post_data = "";
+                        req.on("data", (chunk) => {
+                            post_data += chunk;
+                        }).on("end", () => {
+                            requests.push(post_data);
+                            run();
+                        });
+                    } else {
+                        run();
+                    }
+                    return;
+                }
                 fs.readFile(filePath, (err, data) => {
-                    var ext = path.extname(filePath);
                     if (err === null) {
                         var mime_str = mime[ext] || "text/plain";
                         if (mime_str.match(/text|javascript/)) {
@@ -103,22 +162,7 @@ if (process.argv.length < 4) {
                         res.writeHead(200, {
                             "Content-Type": mime_str,
                         });
-                        var exe = "";
-                        switch (ext) {
-                            case ".pl":
-                                exe = "/usr/bin/perl";
-                                break;
-                            case ".cgi":
-                                var m = data.toString().match(/^#!([\S]+)/);
-                                if (m) exe = m[1];
-                                break;
-                        }
-                        if (exe !== "" && fs.existsSync(exe)) {
-                            var stdout = execSync(exe + " " + filePath);
-                            res.end(stdout);
-                        } else {
-                            res.end(data);
-                        }
+                        res.end(data);
                     } else {
                         err_func(err);
                     }
