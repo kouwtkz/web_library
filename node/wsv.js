@@ -104,35 +104,34 @@ if (process.argv.length < 4) {
                 }
                 res.end(html);
             } else {
-                var ext = path.extname(filePath);
-                var exe = "";
-                var exe_force = false;
-                var exe_arg = "";
-                switch (ext) {
-                    case ".pl":
-                        exe = "/usr/bin/perl";
-                        break;
-                    case ".cgi":
-                        data = fs.readFileSync(filePath);
-                        var m = data.toString().match(/^#!([\S]+)/);
-                        if (m) exe = m[1];
-                        break;
-                    case ".js":
-                        if (dirName.match(cgi_bin_re)) {
-                            exe_force = true;
-                            exe = "node";
-                        }
-                        break;
-                }
-                if (exe !== "" && (exe_force || fs.existsSync(exe))) {
-                    var requests;
-                    if (pathSplit.length > 0) {
-                        requests = pathSplit.join("?").split("&");
-                    } else {
-                        requests = [];
+                if (fs.existsSync(filePath)) {
+                    var ext = path.extname(filePath);
+                    var exe = "";
+                    var exe_force = false;
+                    switch (ext) {
+                        case ".pl":
+                            exe = "/usr/bin/perl";
+                            break;
+                        case ".cgi":
+                            data = fs.readFileSync(filePath);
+                            var m = data.toString().match(/^#!([\S]+)/);
+                            if (m) exe = m[1];
+                            break;
+                        case ".js":
+                            if (dirName.match(cgi_bin_re)) {
+                                exe_force = true;
+                                exe = "node";
+                            }
+                            break;
                     }
-                    const run = () => {
-                        if (fs.existsSync(filePath)) {
+                    if (exe !== "" && (exe_force || fs.existsSync(exe))) {
+                        var requests;
+                        if (pathSplit.length > 0) {
+                            requests = pathSplit.join("?").split("&");
+                        } else {
+                            requests = [];
+                        }
+                        const run = () => {
                             var request_str =
                                 requests.length > 0
                                     ? ' "' + requests.join("&") + '"'
@@ -140,37 +139,37 @@ if (process.argv.length < 4) {
                             var exec_str = exe + " " + filePath + request_str;
                             var stdout = execSync(exec_str);
                             res.end(stdout);
+                        };
+                        if (req.method === "POST") {
+                            var post_data = "";
+                            req.on("data", (chunk) => {
+                                post_data += chunk;
+                            }).on("end", () => {
+                                requests.push(post_data);
+                                run();
+                            });
                         } else {
-                            err_func({ code: "ENOENT" });
-                        }
-                    };
-                    if (req.method === "POST") {
-                        var post_data = "";
-                        req.on("data", (chunk) => {
-                            post_data += chunk;
-                        }).on("end", () => {
-                            requests.push(post_data);
                             run();
-                        });
-                    } else {
-                        run();
-                    }
-                    return;
-                }
-                fs.readFile(filePath, (err, data) => {
-                    if (err === null) {
-                        var mime_str = mime[ext] || "text/plain";
-                        if (mime_str.match(/text|javascript/)) {
-                            mime_str += "; charset=utf-8";
                         }
-                        res.writeHead(200, {
-                            "Content-Type": mime_str,
-                        });
-                        res.end(data);
-                    } else {
-                        err_func(err);
+                        return;
                     }
-                });
+                    fs.readFile(filePath, (err, data) => {
+                        if (err === null) {
+                            var mime_str = mime[ext] || "text/plain";
+                            if (mime_str.match(/text|javascript/)) {
+                                mime_str += "; charset=utf-8";
+                            }
+                            res.writeHead(200, {
+                                "Content-Type": mime_str,
+                            });
+                            res.end(data);
+                        } else {
+                            err_func(err);
+                        }
+                    });
+                } else {
+                    err_func({ code: "ENOENT" });
+                }
             }
         })
         .listen(option.Port);
