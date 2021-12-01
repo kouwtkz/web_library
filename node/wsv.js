@@ -131,14 +131,18 @@ if (process.argv.length < 4) {
                     } else {
                         requests = [];
                     }
-                    var run = () => {
-                        var request_str =
-                            requests.length > 0
-                                ? ' "' + requests.join("&") + '"'
-                                : "";
-                        var exec_str = exe + " " + filePath + request_str;
-                        var stdout = execSync(exec_str);
-                        res.end(stdout);
+                    const run = () => {
+                        if (fs.existsSync(filePath)) {
+                            var request_str =
+                                requests.length > 0
+                                    ? ' "' + requests.join("&") + '"'
+                                    : "";
+                            var exec_str = exe + " " + filePath + request_str;
+                            var stdout = execSync(exec_str);
+                            res.end(stdout);
+                        } else {
+                            err_func({ code: "ENOENT" });
+                        }
                     };
                     if (req.method === "POST") {
                         var post_data = "";
