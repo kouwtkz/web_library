@@ -6,14 +6,20 @@ if (process.argv.length < 4) {
             var a = server.close();
         }
     }
-    var option = { DocumentRoot: process.argv[2], Port: Number(process.argv[3]) };
-    var http = require("http");
-    var path = require("path");
-    var fs = require("fs");
+    var option = {
+        DocumentRoot: process.argv[2],
+        Port: Number(process.argv[3]),
+    };
+    const http = require("http");
+    const path = require("path");
+    const fs = require("fs");
+    const { execSync } = require("child_process");
     var mime = {
         ".html": "text/html",
         ".htm": "text/html",
         ".php": "text/html",
+        ".pl": "text/html",
+        ".cgi": "text/html",
         ".css": "text/css",
         ".js": "application/javascript",
         ".png": "image/png",
@@ -23,7 +29,7 @@ if (process.argv.length < 4) {
     };
 
     var server = http
-        .createServer(function (req, res) {
+        .createServer((req, res) => {
             var pathSplit = req.url.split("?");
             var pathName = pathSplit.shift();
             var dirName = path.dirname(pathName);
@@ -76,17 +82,32 @@ if (process.argv.length < 4) {
                 }
                 res.end(html);
             } else {
-                fs.readFile(filePath, function (err, data) {
+                fs.readFile(filePath, (err, data) => {
+                    var ext = path.extname(filePath);
                     if (err === null) {
-                        var mime_str =
-                            mime[path.extname(filePath)] || "text/plain";
-                        if (mime_str.match(/text||javascript/)) {
+                        var mime_str = mime[ext] || "text/plain";
+                        if (mime_str.match(/text|javascript/)) {
                             mime_str += "; charset=utf-8";
                         }
                         res.writeHead(200, {
                             "Content-Type": mime_str,
                         });
-                        res.end(data);
+                        var exe = "";
+                        switch (ext) {
+                            case ".pl":
+                                exe = "/usr/bin/perl";
+                                break;
+                            case ".cgi":
+                                var m = data.toString().match(/^#!([\S]+)/);
+                                if (m) exe = m[1];
+                                break;
+                        }
+                        if (exe !== "" && fs.existsSync(exe)) {
+                            var stdout = execSync(exe + " " + filePath);
+                            res.end(stdout);
+                        } else {
+                            res.end(data);
+                        }
                     } else {
                         err_func(err);
                     }
