@@ -35,15 +35,30 @@ if (process.argv.length < 4) {
         "index.php",
     ];
     var cgi_bin_re = /^\/cgi-bin\//;
+    const set_header = (res, ext_mime = ".html", code = 200) => {
+        if (res !== undefined) {
+            var mime_str = ext_mime.match(/^\./)
+                ? mime[ext_mime] || "text/plain"
+                : ext_mime;
+            if (mime_str.match(/text|javascript/)) {
+                mime_str += "; charset=utf-8";
+            }
+            res.writeHead(code, {
+                "Content-Type": mime_str,
+            });
+        } else {
+            console.error("need http.res");
+        }
+    };
 
     var server = http
         .createServer((req, res) => {
             var err_func = function (err) {
                 if (err.code === "ENOENT") {
-                    res.writeHead(404, { "Content-Type": "text/plain" });
+                    set_header(res, ".html", 404);
                     res.end("404 not found");
                 } else {
-                    res.writeHead(200, { "Content-Type": "text/plain" });
+                    set_header(res, ".html");
                     res.end(JSON.stringify(err));
                 }
             };
@@ -51,6 +66,7 @@ if (process.argv.length < 4) {
             var pathName = pathSplit.shift();
             var dirName = path.dirname(pathName);
             var pageName = path.basename(pathName);
+
             if (!pageName.match(/\./) && !pathName.match(/\/$/)) {
                 var quaryStr =
                     pathSplit.length > 0 ? "?" + pathSplit.join("?") : "";
@@ -82,11 +98,8 @@ if (process.argv.length < 4) {
             filePath = option.DocumentRoot + dirName + pageName;
             if (pageName === "") {
                 var html = "";
-                var mime_str = "text/html; charset=utf-8";
                 if (fs.existsSync(filePath)) {
-                    res.writeHead(200, {
-                        "Content-Type": mime_str,
-                    });
+                    set_header(res, ".html");
                     files = fs.readdirSync(filePath + ".");
                     if (files) {
                         files.forEach((file) => {
@@ -104,8 +117,8 @@ if (process.argv.length < 4) {
                 }
                 res.end(html);
             } else {
+                var ext = path.extname(filePath);
                 if (fs.existsSync(filePath)) {
-                    var ext = path.extname(filePath);
                     var exe = "";
                     var exe_force = false;
                     switch (ext) {
@@ -139,6 +152,7 @@ if (process.argv.length < 4) {
                             var exec_str = exe + " " + filePath + request_str;
                             try {
                                 var stdout = execSync(exec_str);
+                                set_header(res, ".html");
                                 res.end(stdout);
                             } catch (error) {
                                 err_func(error);
@@ -158,14 +172,8 @@ if (process.argv.length < 4) {
                         return;
                     }
                     fs.readFile(filePath, (err, data) => {
+                        set_header(res, ext);
                         if (err === null) {
-                            var mime_str = mime[ext] || "text/plain";
-                            if (mime_str.match(/text|javascript/)) {
-                                mime_str += "; charset=utf-8";
-                            }
-                            res.writeHead(200, {
-                                "Content-Type": mime_str,
-                            });
                             res.end(data);
                         } else {
                             err_func(err);
