@@ -10,6 +10,14 @@ if (process.argv.length < 4) {
         DocumentRoot: process.argv[2],
         Port: Number(process.argv[3]),
     };
+    var user = null;
+    if (process.argv.length > 5) {
+        user = {
+            Name: process.argv[4],
+            Password: process.argv[5],
+            CookieKey: "wsv_login",
+        };
+    }
     const http = require("http");
     const path = require("path");
     const fs = require("fs");
@@ -17,9 +25,10 @@ if (process.argv.length < 4) {
     var mime = {
         ".html": "text/html",
         ".htm": "text/html",
-        ".php": "text/html",
-        ".pl": "text/html",
         ".cgi": "text/html",
+        ".pl": "text/html",
+        ".php": "text/html",
+        ".ejs": "text/html",
         ".css": "text/css",
         ".js": "application/javascript",
         ".png": "image/png",
@@ -33,9 +42,10 @@ if (process.argv.length < 4) {
         "index.cgi",
         "index.pl",
         "index.php",
+        "index.ejs",
     ];
     var cgi_bin_re = /^\/cgi-bin\//;
-    const set_header = (res, ext_mime = ".html", code = 200) => {
+    const set_header = (res, ext_mime = ".html", code = 200, add_str = "") => {
         if (res !== undefined) {
             var mime_str = ext_mime.match(/^\./)
                 ? mime[ext_mime] || "text/plain"
@@ -50,9 +60,77 @@ if (process.argv.length < 4) {
             console.error("need http.res");
         }
     };
-
+    const cookie_get = (key = "", req_ck = "") => {
+        var cookie =
+            typeof req_ck === "object"
+                ? req_ck.headers.cookie
+                : req_ck.toString();
+        if (cookie === undefined) cookie = "";
+        var m = cookie.match(eval(`/(^|;s*)(${key}=)([^;]*)/`));
+        return m ? m[3] : "";
+    };
+    const cookie_str_login = (user = null, password = "") => {
+        var name;
+        if (typeof user === "object") {
+            if (user === null) return "";
+            name = user.Name.toString();
+            password = user.Password.toString();
+        } else {
+            name = user.toString();
+        }
+        var result = "";
+        var len = name.length > password.length ? name.length : password.length;
+        for (var i = 0; i < len; i++) {
+            var n = i < name.length ? name[i].charCodeAt() : 0;
+            var p = i < password.length ? password[i].charCodeAt() : 0;
+            result += Math.abs(n - p).toString(16);
+        }
+        return result;
+    };
+    if (user !== null) {
+        user.CookieValue = cookie_str_login(user);
+    }
+    const get_requests_str = (req) => {
+        return new Promise((resolve) => {
+            var requests;
+            const func = () => {
+                resolve(
+                    requests
+                        .filter((v) => {
+                            return v !== "";
+                        })
+                        .join("&")
+                );
+            };
+            requests = req.url.replace(/^[^\?]*\??/, "").split("&");
+            if (req.method === "POST") {
+                var post_data = "";
+                req.on("data", (chunk) => {
+                    post_data += chunk;
+                }).on("end", async () => {
+                    requests.push(post_data);
+                    func();
+                });
+            } else {
+                func();
+            }
+        });
+    };
+    const get_requests = async (req) => {
+        var request_str = await get_requests_str(req);
+        var dic = {};
+        if (request_str !== "") {
+            request_str.split("&").forEach((v) => {
+                var m = v.match(/(^[^=]+)=?([\d\D]*)$/);
+                if (m) {
+                    dic[m[1]] = m[2];
+                }
+            });
+        }
+        return dic;
+    };
     var server = http
-        .createServer((req, res) => {
+        .createServer(async (req, res) => {
             var err_func = function (err) {
                 if (err.code === "ENOENT") {
                     set_header(res, ".html", 404);
@@ -62,21 +140,62 @@ if (process.argv.length < 4) {
                     res.end(JSON.stringify(err));
                 }
             };
+            if (user !== null) {
+                var cookie_login_value = cookie_get(user.CookieKey, req);
+                if (cookie_login_value !== user.CookieValue) {
+                    if (!req.url.match(/\.ico$/)) {
+                        var html_spl = [
+                            "<html><head>" +
+                                '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+                                "<style>form,input{margin:0 4px}</style>" +
+                                "</head><body><h4>Login Form</h4>" +
+                                '<form method="post"><input name="user" placeholder="user"><input name="password" type="password" placeholder="password"><input type="submit"></form>',
+                            "</body></html>",
+                        ];
+                        var html_add = "";
+                        var requests = await get_requests(req);
+                        if (
+                            requests.user !== undefined &&
+                            requests.password !== undefined
+                        ) {
+                            if (
+                                user.Name === requests.user &&
+                                user.Password === requests.password
+                            ) {
+                                var age = 60 * 60 * 24 * 30 * 3;
+                                res.setHeader("Set-Cookie", [
+                                    `${user.CookieKey}=${user.CookieValue};max-age=${age};path=/`,
+                                ]);
+                                res.writeHead(302, {
+                                    Location: req.url,
+                                });
+                                res.end();
+                                return;
+                            } else {
+                                html_add =
+                                    '<p style="color:#e14438">Incorrect username or password</p>';
+                            }
+                        }
+                        set_header(res, ".html");
+                        res.write(html_spl.join(html_add));
+                    }
+                    res.end();
+                    return;
+                }
+            }
             var pathSplit = req.url.split("?");
             var pathName = pathSplit.shift();
             var dirName = path.dirname(pathName);
             var pageName = path.basename(pathName);
-
             if (!pageName.match(/\./) && !pathName.match(/\/$/)) {
                 var quaryStr =
-                    pathSplit.length > 0 ? "?" + pathSplit.join("?") : "";
+                    pathSplit.length > 0 ? `?${pathSplit.join("?")}` : "";
                 res.writeHead(302, {
-                    Location: pathName + "/" + quaryStr,
+                    Location: `${pathName}/${quaryStr}`,
                 });
                 res.end();
                 return;
             }
-
             var m = pageName.match(/^([^\.]*)(.*)$/);
             if (m[2] === "") {
                 dirName = dirName.replace(/\/?$/, "/") + pageName;
@@ -100,16 +219,10 @@ if (process.argv.length < 4) {
                 var html = "";
                 if (fs.existsSync(filePath)) {
                     set_header(res, ".html");
-                    files = fs.readdirSync(filePath + ".");
+                    files = fs.readdirSync(`${filePath}.`);
                     if (files) {
                         files.forEach((file) => {
-                            html +=
-                                '<a href="' +
-                                file +
-                                '">' +
-                                file +
-                                "</a>" +
-                                "\n";
+                            html += `<a href="${file}">${file}</a>\n`;
                         });
                     }
                 } else {
@@ -138,36 +251,20 @@ if (process.argv.length < 4) {
                             break;
                     }
                     if (exe !== "" && (exe_force || fs.existsSync(exe))) {
-                        var requests;
-                        if (pathSplit.length > 0) {
-                            requests = pathSplit.join("?").split("&");
-                        } else {
-                            requests = [];
-                        }
-                        const run = () => {
-                            var request_str =
-                                requests.length > 0
-                                    ? ' "' + requests.join("&") + '"'
-                                    : "";
-                            var exec_str = exe + " " + filePath + request_str;
-                            try {
-                                var stdout = execSync(exec_str);
-                                set_header(res, ".html");
-                                res.end(stdout);
-                            } catch (error) {
-                                err_func(error);
-                            }
-                        };
-                        if (req.method === "POST") {
-                            var post_data = "";
-                            req.on("data", (chunk) => {
-                                post_data += chunk;
-                            }).on("end", () => {
-                                requests.push(post_data);
-                                run();
-                            });
-                        } else {
-                            run();
+                        var request_str = ` "${await get_requests_str(req)}"`;
+                        var cookie_str = ` "${
+                            req.headers.cookie !== undefined
+                                ? req.headers.cookie
+                                : ""
+                        }"`;
+                        var exec_str =
+                            exe + " " + filePath + request_str + cookie_str;
+                        try {
+                            var stdout = execSync(exec_str);
+                            set_header(res, ".html");
+                            res.end(stdout);
+                        } catch (error) {
+                            err_func(error);
                         }
                         return;
                     }
