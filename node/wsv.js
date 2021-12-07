@@ -66,7 +66,7 @@ if (process.argv.length < 4) {
                 ? req_ck.headers.cookie
                 : req_ck.toString();
         if (cookie === undefined) cookie = "";
-        var m = cookie.match(eval(`/(^|;s*)(${key}=)([^;]*)/`));
+        var m = cookie.match(eval(`/(^|;\\s*)(${key}=)([^;]*)/`));
         return m ? m[3] : "";
     };
     const cookie_str_login = (user = null, password = "") => {
