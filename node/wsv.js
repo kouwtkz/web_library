@@ -147,7 +147,7 @@ if (process.argv.length < 4) {
                         var html_spl = [
                             "<html><head>" +
                                 '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-                                "<style>form,input{margin:0 4px}</style>" +
+                                "<style>form,input{margin:0 4px} @media(prefers-color-scheme:dark){*{color:white;background:#111}}</style>" +
                                 "</head><body><h4>Login Form</h4>" +
                                 '<form method="post"><input name="user" placeholder="user"><input name="password" type="password" placeholder="password"><input type="submit"></form>',
                             "</body></html>",
