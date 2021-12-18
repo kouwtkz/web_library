@@ -1,0 +1,56 @@
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            width: 300px;
+        }
+
+        .button {
+            cursor: pointer;
+        }
+
+        form span,
+        input,
+        textarea,
+        label,
+        select {
+            vertical-align: middle;
+        }
+
+        form#urlSetForm {
+            text-align: center;
+        }
+
+        #urlList {
+            width: 100%;
+            height: 250px;
+            margin-bottom: 6px;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+        }
+
+        @media(prefers-color-scheme:dark) {
+            * {
+                color: #e7e7e7;
+                background: #2a2b2c;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <form id="urlSetForm">
+        <div><textarea id="urlList"></textarea></div>
+        <div>
+            <input class="button" type="button" id="addUrlList" value="このページを追加">
+            <input class="button" type="submit" value="保存する (save)">
+        </div>
+
+    </form>
+</body>
+<script src="popup.js" type="text/javascript"></script>
+
+</html>

@@ -1,0 +1,20 @@
+{
+    "name": "Swipe State Off",
+    "author": "綿風コウラン",
+    "version": "1.0",
+    "manifest_version": 2,
+    "description": "スワイプによる前後移動を無効化する",
+    "browser_action": {
+        "default_title": "Swipe State Off",
+        "default_popup": "popup.html"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["script.js"],
+            "run_at": "document_start"
+        }
+    ],
+    "web_accessible_resources": ["assets/*"],
+    "permissions": ["tabs", "storage"]
+}
