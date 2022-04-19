@@ -184,7 +184,7 @@ if (process.argv.length < 4) {
                 }
             }
             var pathSplit = req.url.split("?");
-            var pathName = pathSplit.shift();
+            var pathName = decodeURI(pathSplit.shift());
             var dirName = path.dirname(pathName);
             var pageName = path.basename(pathName);
             if (!pageName.match(/\./) && !pathName.match(/\/$/)) {
