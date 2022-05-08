@@ -131,10 +131,14 @@ if (process.argv.length < 4) {
     };
     var server = http
         .createServer(async (req, res) => {
-            var err_func = function (err) {
+            var err_func = function (err, url = "") {
                 if (err.code === "ENOENT") {
-                    set_header(res, ".html", 404);
-                    res.end("404 not found");
+                    if (url.match("404.html")) {
+                        set_header(res, ".html", 404);
+                        res.end("404 not found");
+                    } else {
+                        htmlGenerate("/404.html");
+                    }
                 } else {
                     set_header(res, ".html");
                     res.end(JSON.stringify(err));
@@ -183,103 +187,108 @@ if (process.argv.length < 4) {
                     return;
                 }
             }
-            var pathSplit = req.url.split("?");
-            var pathName = decodeURI(pathSplit.shift());
-            var dirName = path.dirname(pathName);
-            var pageName = path.basename(pathName);
-            if (!pageName.match(/\./) && !pathName.match(/\/$/)) {
-                var quaryStr =
-                    pathSplit.length > 0 ? `?${pathSplit.join("?")}` : "";
-                res.writeHead(302, {
-                    Location: `${pathName}/${quaryStr}`,
-                });
-                res.end();
-                return;
-            }
-            var m = pageName.match(/^([^\.]*)(.*)$/);
-            if (m[2] === "") {
-                dirName = dirName.replace(/\/?$/, "/") + pageName;
-                pageName = "";
-            }
-            dirName = dirName.replace(/\/?$/, "/");
-            var filePath;
-            if (pageName === "") {
-                index_list.some((ix) => {
-                    if (pageName === "") {
-                        var tmpPath = option.DocumentRoot + dirName + ix;
-                        if (fs.existsSync(tmpPath)) {
-                            pageName = ix;
-                            return true;
-                        }
-                    }
-                });
-            }
-            filePath = option.DocumentRoot + dirName + pageName;
-            if (pageName === "") {
-                var html = "";
-                if (fs.existsSync(filePath)) {
-                    set_header(res, ".html");
-                    files = fs.readdirSync(`${filePath}.`);
-                    if (files) {
-                        files.forEach((file) => {
-                            html += `<a href="${file}">${file}</a>\n`;
-                        });
-                    }
-                } else {
-                    err_func({ code: "ENOENT" });
+            const htmlGenerate = async (url) => {
+                var pathSplit = url.split("?");
+                var pathName = decodeURI(pathSplit.shift());
+                var dirName = path.dirname(pathName);
+                var pageName = path.basename(pathName);
+                if (!pageName.match(/\./) && !pathName.match(/\/$/)) {
+                    var quaryStr =
+                        pathSplit.length > 0 ? `?${pathSplit.join("?")}` : "";
+                    res.writeHead(302, {
+                        Location: `${pathName}/${quaryStr}`,
+                    });
+                    res.end();
+                    return;
                 }
-                res.end(html);
-            } else {
-                var ext = path.extname(filePath);
-                if (fs.existsSync(filePath)) {
-                    var exe = "";
-                    var exe_force = false;
-                    switch (ext) {
-                        case ".pl":
-                            exe = "/usr/bin/perl";
-                            break;
-                        case ".cgi":
-                            data = fs.readFileSync(filePath);
-                            var m = data.toString().match(/^#!([\S]+)/);
-                            if (m) exe = m[1];
-                            break;
-                        case ".js":
-                            if (dirName.match(cgi_bin_re)) {
-                                exe_force = true;
-                                exe = "node";
+                var m = pageName.match(/^([^\.]*)(.*)$/);
+                if (m[2] === "") {
+                    dirName = dirName.replace(/\/?$/, "/") + pageName;
+                    pageName = "";
+                }
+                dirName = dirName.replace(/\/?$/, "/");
+                var filePath;
+                if (pageName === "") {
+                    index_list.some((ix) => {
+                        if (pageName === "") {
+                            var tmpPath = option.DocumentRoot + dirName + ix;
+                            if (fs.existsSync(tmpPath)) {
+                                pageName = ix;
+                                return true;
                             }
-                            break;
-                    }
-                    if (exe !== "" && (exe_force || fs.existsSync(exe))) {
-                        var request_str = ` "${await get_requests_str(req)}"`;
-                        var cookie_str = ` "${
-                            req.headers.cookie !== undefined
-                                ? req.headers.cookie
-                                : ""
-                        }"`;
-                        var exec_str =
-                            exe + " " + filePath + request_str + cookie_str;
-                        try {
-                            var stdout = execSync(exec_str);
-                            set_header(res, ".html");
-                            res.end(stdout);
-                        } catch (error) {
-                            err_func(error);
-                        }
-                        return;
-                    }
-                    fs.readFile(filePath, (err, data) => {
-                        set_header(res, ext);
-                        if (err === null) {
-                            res.end(data);
-                        } else {
-                            err_func(err);
                         }
                     });
-                } else {
-                    err_func({ code: "ENOENT" });
                 }
-            }
+                filePath = option.DocumentRoot + dirName + pageName;
+                if (pageName === "") {
+                    var html = "";
+                    if (fs.existsSync(filePath)) {
+                        set_header(res, ".html");
+                        files = fs.readdirSync(`${filePath}.`);
+                        if (files) {
+                            files.forEach((file) => {
+                                html += `<a href="${file}">${file}</a>\n`;
+                            });
+                        }
+                        res.end(html);
+                    } else {
+                        err_func({ code: "ENOENT" }, url);
+                    }
+                } else {
+                    var ext = path.extname(filePath);
+                    if (fs.existsSync(filePath)) {
+                        var exe = "";
+                        var exe_force = false;
+                        switch (ext) {
+                            case ".pl":
+                                exe = "/usr/bin/perl";
+                                break;
+                            case ".cgi":
+                                data = fs.readFileSync(filePath);
+                                var m = data.toString().match(/^#!([\S]+)/);
+                                if (m) exe = m[1];
+                                break;
+                            case ".js":
+                                if (dirName.match(cgi_bin_re)) {
+                                    exe_force = true;
+                                    exe = "node";
+                                }
+                                break;
+                        }
+                        if (exe !== "" && (exe_force || fs.existsSync(exe))) {
+                            var request_str = ` "${await get_requests_str(
+                                req
+                            )}"`;
+                            var cookie_str = ` "${
+                                req.headers.cookie !== undefined
+                                    ? req.headers.cookie
+                                    : ""
+                            }"`;
+                            var exec_str =
+                                exe + " " + filePath + request_str + cookie_str;
+                            try {
+                                var stdout = execSync(exec_str);
+                                set_header(res, ".html");
+                                res.end(stdout);
+                            } catch (error) {
+                                err_func(error);
+                            }
+                            return;
+                        }
+                        fs.readFile(filePath, (err, data) => {
+                            set_header(res, ext);
+                            if (err === null) {
+                                res.end(data);
+                            } else {
+                                err_func(err);
+                            }
+                        });
+                    } else {
+                        err_func({ code: "ENOENT" }, url);
+                    }
+                }
+            };
+            htmlGenerate(req.url);
         })
         .listen(option.Port);
     console.log(server);
