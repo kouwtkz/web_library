@@ -39,6 +39,7 @@ if (process.argv.length < 4) {
     var index_list = [
         "index.html",
         "index.htm",
+        "index.js",
         "index.cgi",
         "index.pl",
         "index.php",
@@ -249,7 +250,7 @@ if (process.argv.length < 4) {
                                 if (m) exe = m[1];
                                 break;
                             case ".js":
-                                if (dirName.match(cgi_bin_re)) {
+                                if (pageName === "index.js" || dirName.match(cgi_bin_re)) {
                                     exe_force = true;
                                     exe = "node";
                                 }
