@@ -299,7 +299,7 @@ if (process.argv.length < 4) {
         intf[e].forEach((d) => {
             if (d.family === "IPv4" && d.address !== "127.0.0.1")
                 option.Address = d.address;
-            option.URL = option.Address + ":" + option.Port;
+            option.URL = `http://${option.Address}:${option.Port}`;
         });
     });
     console.log(option);
