@@ -35,15 +35,19 @@ if (process.argv.length < 4) {
         ".jpg": "image/jpeg",
         ".gif": "image/gif",
         ".txt": "text/plain",
+        ".xml": "text/xml",
+        ".json": "application/json"
     };
     var index_list = [
-        "index.html",
-        "index.htm",
-        "index.js",
-        "index.cgi",
-        "index.pl",
-        "index.php",
-        "index.ejs",
+        "/index.html",
+        "/index.htm",
+        ".html",
+        ".htm",
+        "/index.js",
+        "/index.cgi",
+        "/index.pl",
+        "/index.php",
+        "/index.ejs",
     ];
     var cgi_bin_re = /^\/cgi-bin\//;
     const set_header = (res, ext_mime = ".html", code = 200, add_str = "") => {
@@ -151,10 +155,10 @@ if (process.argv.length < 4) {
                     if (!req.url.match(/\.ico$/)) {
                         var html_spl = [
                             "<html><head>" +
-                                '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-                                "<style>form,input{margin:0 4px} @media(prefers-color-scheme:dark){*{color:white;background:#111}}</style>" +
-                                "</head><body><h4>Login Form</h4>" +
-                                '<form method="post"><input name="user" placeholder="user"><input name="password" type="password" placeholder="password"><input type="submit"></form>',
+                            '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+                            "<style>form,input{margin:0 4px} @media(prefers-color-scheme:dark){*{color:white;background:#111}}</style>" +
+                            "</head><body><h4>Login Form</h4>" +
+                            '<form method="post"><input name="user" placeholder="user"><input name="password" type="password" placeholder="password"><input type="submit"></form>',
                             "</body></html>",
                         ];
                         var html_add = "";
@@ -191,41 +195,30 @@ if (process.argv.length < 4) {
             const htmlGenerate = async (url) => {
                 var pathSplit = url.split("?");
                 var pathName = decodeURI(pathSplit.shift());
-                var dirName = path.dirname(pathName);
-                var pageName = path.basename(pathName);
-                if (!pageName.match(/\./) && !pathName.match(/\/$/)) {
-                    var quaryStr =
-                        pathSplit.length > 0 ? `?${pathSplit.join("?")}` : "";
-                    res.writeHead(302, {
-                        Location: `${pathName}/${quaryStr}`,
-                    });
-                    res.end();
-                    return;
+                let filePath = path.resolve(option.DocumentRoot + pathName);
+                let lst, isDir;
+                try {
+                    lst = fs.lstatSync(filePath);
+                    isDir = lst.isDirectory();
+                } catch {
+                    isDir = true;
                 }
-                var m = pageName.match(/^([^\.]*)(.*)$/);
-                if (m[2] === "") {
-                    dirName = dirName.replace(/\/?$/, "/") + pageName;
-                    pageName = "";
-                }
-                dirName = dirName.replace(/\/?$/, "/");
-                var filePath;
-                if (pageName === "") {
-                    index_list.some((ix) => {
-                        if (pageName === "") {
-                            var tmpPath = option.DocumentRoot + dirName + ix;
-                            if (fs.existsSync(tmpPath)) {
-                                pageName = ix;
-                                return true;
-                            }
+                if (isDir) {
+                    index_list.some((index) => {
+                        const indexFilePath = filePath + index;
+                        if (fs.existsSync(indexFilePath)) {
+                            filePath = indexFilePath;
+                            lst = fs.lstatSync(filePath);
+                            isDir = lst.isDirectory();
+                            return true;
                         }
                     });
                 }
-                filePath = option.DocumentRoot + dirName + pageName;
-                if (pageName === "") {
+                if (isDir) {
                     var html = "";
                     if (fs.existsSync(filePath)) {
                         set_header(res, ".html");
-                        files = fs.readdirSync(`${filePath}.`);
+                        files = fs.readdirSync(`${filePath}`);
                         if (files) {
                             files.forEach((file) => {
                                 html += `<a href="${file}">${file}</a>\n`;
@@ -250,7 +243,7 @@ if (process.argv.length < 4) {
                                 if (m) exe = m[1];
                                 break;
                             case ".js":
-                                if (pageName === "index.js" || dirName.match(cgi_bin_re)) {
+                                if (pathName.endsWith("index.js") || filePath.match(cgi_bin_re)) {
                                     exe_force = true;
                                     exe = "node";
                                 }
@@ -260,11 +253,10 @@ if (process.argv.length < 4) {
                             var request_str = ` "${await get_requests_str(
                                 req
                             )}"`;
-                            var cookie_str = ` "${
-                                req.headers.cookie !== undefined
-                                    ? req.headers.cookie
-                                    : ""
-                            }"`;
+                            var cookie_str = ` "${req.headers.cookie !== undefined
+                                ? req.headers.cookie
+                                : ""
+                                }"`;
                             var exec_str =
                                 exe + " " + filePath + request_str + cookie_str;
                             try {
