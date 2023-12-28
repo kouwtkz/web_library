@@ -33,6 +33,8 @@ if (process.argv.length < 4) {
         ".js": "application/javascript",
         ".png": "image/png",
         ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".svg": "image/svg+xml",
         ".gif": "image/gif",
         ".txt": "text/plain",
         ".xml": "text/xml",
